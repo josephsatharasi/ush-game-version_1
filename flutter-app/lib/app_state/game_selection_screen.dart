@@ -30,6 +30,7 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error fetching games: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -62,31 +63,38 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                         SizedBox(height: 24),
 
                         // Games List
-                        if (_isLoading)
-                          Center(child: CircularProgressIndicator())
-                        else if (_liveGames.isEmpty)
-                          Center(child: Text('No games available'))
-                        else
-                          ..._liveGames.map((game) => Padding(
-                            padding: EdgeInsets.only(bottom: 20),
-                            child: _buildGameCard(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  Color(0xFFFF8A80),
-                                  Color(0xFFFFB74D),
-                                ],
-                              ),
-                              title: game['gameCode'],
-                              subtitle: game['status'],
-                              coinValues: ['${game['bookedSlots']}', '${game['totalSlots']}'],
-                              isLiveGame: true,
-                              onTap: () {
-                                Navigator.pushNamed(context, '/live-gametype1');
-                              },
-                            ),
-                          )).toList(),
+                        Expanded(
+                          child: _isLoading
+                              ? Center(child: CircularProgressIndicator())
+                              : _liveGames.isEmpty
+                                  ? Center(child: Text('No games available'))
+                                  : ListView.builder(
+                                      itemCount: _liveGames.length,
+                                      itemBuilder: (context, index) {
+                                        final game = _liveGames[index];
+                                        return Padding(
+                                          padding: EdgeInsets.only(bottom: 20),
+                                          child: _buildGameCard(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.centerLeft,
+                                              end: Alignment.centerRight,
+                                              colors: [
+                                                Color(0xFFFF8A80),
+                                                Color(0xFFFFB74D),
+                                              ],
+                                            ),
+                                            title: game['gameCode'],
+                                            subtitle: game['status'],
+                                            coinValues: ['${game['bookedSlots']}', '${game['totalSlots']}'],
+                                            isLiveGame: true,
+                                            onTap: () {
+                                              Navigator.pushNamed(context, '/live-gametype1');
+                                            },
+                                          ),
+                                        );
+                                      },
+                                    ),
+                        ),
 
 
                       

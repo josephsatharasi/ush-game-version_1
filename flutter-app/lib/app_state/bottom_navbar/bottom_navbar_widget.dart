@@ -13,8 +13,9 @@ class BottomNavbarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    
     return Container(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -25,20 +26,19 @@ class BottomNavbarWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Container(
-          height: 80,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: BottomNavbarModel.items.map((item) {
-              final isSelected = currentIndex == item.index;
-              return GestureDetector(
-                onTap: () => onTap(item.index),
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 70,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: BottomNavbarModel.items.map((item) {
+                final isSelected = currentIndex == item.index;
+                return GestureDetector(
+                  onTap: () => onTap(item.index),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         _getIconData(item.iconPath),
@@ -56,11 +56,13 @@ class BottomNavbarWidget extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              }).toList(),
+            ),
           ),
-        ),
+          if (bottomPadding > 0)
+            SizedBox(height: bottomPadding),
+        ],
       ),
     );
   }
