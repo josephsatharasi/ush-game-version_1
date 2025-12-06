@@ -14,7 +14,7 @@ class BottomNavbarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 80,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -25,36 +25,42 @@ class BottomNavbarWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: BottomNavbarModel.items.map((item) {
-          final isSelected = currentIndex == item.index;
-          return GestureDetector(
-            onTap: () => onTap(item.index),
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _getIconData(item.iconPath),
-                    color: isSelected ? Color(0xFF1E3A8A) : Colors.grey,
-                    size: 24,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          height: 80,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: BottomNavbarModel.items.map((item) {
+              final isSelected = currentIndex == item.index;
+              return GestureDetector(
+                onTap: () => onTap(item.index),
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getIconData(item.iconPath),
+                        color: isSelected ? Color(0xFF1E3A8A) : Colors.grey,
+                        size: 24,
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isSelected ? Color(0xFF1E3A8A) : Colors.grey,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isSelected ? Color(0xFF1E3A8A) : Colors.grey,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }

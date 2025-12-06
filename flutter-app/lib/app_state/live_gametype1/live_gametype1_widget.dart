@@ -46,14 +46,27 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         setState(() {
           _gameId = response['game']['_id'];
         });
+        await _loadSlotConfiguration(_gameId!);
       }
     } catch (e) {
-      // Backend not available, use mock game ID for local testing
       if (mounted) {
         setState(() {
           _gameId = 'mock-game-id';
         });
       }
+    }
+  }
+
+  Future<void> _loadSlotConfiguration(String gameId) async {
+    try {
+      final response = await BackendApiConfig.getGameSlotConfig(gameId: gameId);
+      if (mounted) {
+        setState(() {
+          _model.updateSlotConfiguration(response['config']);
+        });
+      }
+    } catch (e) {
+      print('Using default slot configuration: $e');
     }
   }
 
