@@ -98,12 +98,16 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
           final booking = response['booking'];
           final cardNumbers = booking['cardNumbers'] as List;
           final ticketNumbers = booking['ticketNumbers'] as List;
+          final generatedNumbers = booking['generatedNumbers'] as List?;
           await prefs.setString('cardNumber', cardNumbers.isNotEmpty ? cardNumbers[0] : '');
           await prefs.setString('ticketNumber', ticketNumbers.isNotEmpty ? ticketNumbers[0] : '');
           await prefs.setString('bookingId', booking['_id']);
           await prefs.setString('gameId', _gameId!);
           await prefs.setString('gameCode', booking['gameCode']);
           await prefs.setString('bookingStatus', booking['status']);
+          if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+            await prefs.setString('generatedNumbers', generatedNumbers[0]);
+          }
           
           if (mounted) {
             GameService().startPolling();

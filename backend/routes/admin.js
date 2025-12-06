@@ -126,7 +126,7 @@ router.get('/games/admin-all', requireRole(['admin']), async (req, res) => {
 router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { maxTicketsPerUser, availableWeekDays, availableTimeSlots, scheduledDate } = req.body;
+    const { maxTicketsPerUser, availableTickets, availableWeekDays, availableTimeSlots, scheduledDate } = req.body;
 
     const game = await LiveGame.findById(gameId);
     if (!game) {
@@ -136,6 +136,7 @@ router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req
     const existingConfig = await GameSlotConfig.findOne({ gameId });
     if (existingConfig) {
       existingConfig.maxTicketsPerUser = maxTicketsPerUser;
+      existingConfig.availableTickets = availableTickets || [1, 3, 6];
       existingConfig.availableWeekDays = availableWeekDays;
       existingConfig.availableTimeSlots = availableTimeSlots;
       existingConfig.scheduledDate = new Date(scheduledDate);
@@ -147,6 +148,7 @@ router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req
       gameId,
       gameCode: game.gameCode,
       maxTicketsPerUser,
+      availableTickets: availableTickets || [1, 3, 6],
       availableWeekDays,
       availableTimeSlots,
       scheduledDate: new Date(scheduledDate)

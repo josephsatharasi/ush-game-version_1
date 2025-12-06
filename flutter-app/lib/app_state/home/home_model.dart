@@ -15,4 +15,12 @@ class HomeModel {
     'JALDHI': 'JALDI',
     'HOUSI': 'HOUSIE',
   };
+
+  String ticketNumber = '';
+  String generatedNumbers = '';
+  
+  List<int> getNumbersList() {
+    if (generatedNumbers.isEmpty) return [];
+    return generatedNumbers.split(',').map((e) => int.tryParse(e.trim()) ?? 0).toList();
+  }
 }

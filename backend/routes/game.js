@@ -97,13 +97,15 @@ router.post('/book', auth, async (req, res) => {
       });
     }
 
-    // Generate multiple card numbers and ticket numbers for the booking
+    // Generate multiple card numbers, ticket numbers, and random numbers for the booking
     const cardNumbers = [];
     const ticketNumbers = [];
+    const generatedNumbers = [];
     
     for (let i = 0; i < ticketCount; i++) {
       cardNumbers.push(cardGenerator.generateCardNumber());
       ticketNumbers.push(`${game.gameCode}-${String(game.bookedSlots + i + 1).padStart(4, '0')}`);
+      generatedNumbers.push(cardGenerator.generateTicketNumbers());
     }
 
     const booking = new Booking({
@@ -117,6 +119,7 @@ router.post('/book', auth, async (req, res) => {
       timeSlot,
       cardNumbers,
       ticketNumbers,
+      generatedNumbers,
       status: 'DELIVERED'
     });
 
@@ -131,7 +134,8 @@ router.post('/book', auth, async (req, res) => {
       booking: { 
         _id: booking._id, 
         cardNumbers, 
-        ticketNumbers, 
+        ticketNumbers,
+        generatedNumbers,
         gameCode: game.gameCode,
         ticketCount,
         scheduledDate,
@@ -163,13 +167,16 @@ router.get('/bookings', auth, async (req, res) => {
       _id: b._id,
       username: b.userId?.username || 'Unknown',
       email: b.userId?.email,
+      phone: b.userId?.phone,
       gameCode: b.gameCode,
       gameType: b.gameType,
       ticketCount: b.ticketCount,
       scheduledDate: b.scheduledDate,
       weekDay: b.weekDay,
       timeSlot: b.timeSlot,
-      cardNumber: b.cardNumber,
+      cardNumbers: b.cardNumbers,
+      ticketNumbers: b.ticketNumbers,
+      generatedNumbers: b.generatedNumbers,
       status: b.status,
       bookedAt: b.bookedAt
     }));

@@ -40,13 +40,16 @@ const Tickets = () => {
   };
 
   const displayTickets = tickets.map(t => ({
-    id: t.id,
-    ticketNumber: t.ticketNumber,
-    cardNumber: t.cardNumber,
+    id: t._id,
+    ticketNumbers: t.ticketNumbers || [],
+    cardNumbers: t.cardNumbers || [],
+    generatedNumbers: t.generatedNumbers || [],
     userName: t.username,
     phone: t.phone,
-    gameType: t.gameName || 'Live Game',
-    timeSlot: t.timeSlot ? new Date(t.timeSlot).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+    gameType: t.gameCode || 'Live Game',
+    weekDay: t.weekDay,
+    timeSlot: t.timeSlot,
+    ticketCount: t.ticketCount,
     status: t.status === 'DELIVERED' ? 'Active' : 'Pending',
     purchaseDate: new Date(t.bookedAt).toLocaleDateString()
   }));
@@ -126,12 +129,11 @@ const Tickets = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Ticket ID</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">User</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Ticket Number</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Game Type</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Time Slot</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Price</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Tickets</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Generated Numbers</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Game</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Day & Time</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
               </tr>
@@ -143,21 +145,53 @@ const Tickets = () => {
                 <tr><td colSpan="8" className="text-center py-8 text-gray-500">No tickets found. Bookings will appear here once users book tickets.</td></tr>
               ) : displayTickets.map((ticket) => (
                 <tr key={ticket.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4 font-medium">{ticket.ticketNumber}</td>
                   <td className="py-3 px-4">
                     <div>
                       <div className="font-medium">{ticket.userName}</div>
                       <div className="text-xs text-gray-500">{ticket.phone}</div>
                     </div>
                   </td>
-                  <td className="py-3 px-4 font-mono">{ticket.cardNumber}</td>
+                  <td className="py-3 px-4">
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-500">Count: {ticket.ticketCount}</div>
+                      {ticket.ticketNumbers.slice(0, 2).map((tn, i) => (
+                        <div key={i} className="font-mono text-xs">{tn}</div>
+                      ))}
+                      {ticket.ticketNumbers.length > 2 && (
+                        <div className="text-xs text-blue-600">+{ticket.ticketNumbers.length - 2} more</div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="max-w-xs">
+                      {ticket.generatedNumbers.slice(0, 1).map((nums, i) => (
+                        <div key={i} className="flex flex-wrap gap-1">
+                          {nums.split(',').slice(0, 8).map((num, j) => (
+                            <span key={j} className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-mono">
+                              {num.trim()}
+                            </span>
+                          ))}
+                          {nums.split(',').length > 8 && (
+                            <span className="text-xs text-gray-500">+{nums.split(',').length - 8}</span>
+                          )}
+                        </div>
+                      ))}
+                      {ticket.generatedNumbers.length > 1 && (
+                        <div className="text-xs text-blue-600 mt-1">+{ticket.generatedNumbers.length - 1} more tickets</div>
+                      )}
+                    </div>
+                  </td>
                   <td className="py-3 px-4">
                     <span className="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
                       {ticket.gameType}
                     </span>
                   </td>
-                  <td className="py-3 px-4">{ticket.timeSlot}</td>
-                  <td className="py-3 px-4 font-medium">Free</td>
+                  <td className="py-3 px-4">
+                    <div className="text-sm">
+                      <div className="font-medium">{ticket.weekDay}</div>
+                      <div className="text-xs text-gray-500">{ticket.timeSlot}</div>
+                    </div>
+                  </td>
                   <td className="py-3 px-4">
                     <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(ticket.status)}`}>
                       {ticket.status}
@@ -165,17 +199,12 @@ const Tickets = () => {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex space-x-2">
-                      <button className="p-1 text-blue-600 hover:bg-blue-100 rounded">
+                      <button className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="View Details">
                         <Eye size={16} />
                       </button>
-                      <button className="p-1 text-green-600 hover:bg-green-100 rounded">
+                      <button className="p-1 text-green-600 hover:bg-green-100 rounded" title="Download">
                         <Download size={16} />
                       </button>
-                      {ticket.status === 'Won' && (
-                        <button className="p-1 text-green-600 hover:bg-green-100 rounded">
-                          <CheckCircle size={16} />
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>

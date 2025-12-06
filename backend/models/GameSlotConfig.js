@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const gameSlotConfigSchema = new mongoose.Schema({
   gameId: { type: mongoose.Schema.Types.ObjectId, ref: 'LiveGame', required: true },
   gameCode: { type: String, required: true },
-  maxTicketsPerUser: { type: Number, default: 6, min: 1, max: 6 },
+  maxTicketsPerUser: { type: Number, default: 6, min: 1, max: 10 },
+  availableTickets: [{ type: Number, min: 1, max: 10 }],
   availableWeekDays: [{
     type: String,
     enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

@@ -27,6 +27,7 @@ class _HomeWidgetState extends State<HomeWidget> {
     'assets/images/burgar.png',
   ];
   String _ticketNumber = '';
+  String _generatedNumbers = '';
 
   @override
   void initState() {
@@ -39,9 +40,11 @@ class _HomeWidgetState extends State<HomeWidget> {
   Future<void> _loadTicketNumber() async {
     final prefs = await SharedPreferences.getInstance();
     final cardNumber = prefs.getString('cardNumber');
-    if (cardNumber != null && mounted) {
+    final generatedNums = prefs.getString('generatedNumbers');
+    if (mounted) {
       setState(() {
-        _ticketNumber = cardNumber;
+        _ticketNumber = cardNumber ?? '';
+        _generatedNumbers = generatedNums ?? '';
       });
     }
     _checkLiveGame();
@@ -278,6 +281,29 @@ class _HomeWidgetState extends State<HomeWidget> {
                                               _ticketNumber.isNotEmpty ? 'Ticket: $_ticketNumber' : 'No ticket booked',
                                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                             ),
+                                            if (_generatedNumbers.isNotEmpty) ..[
+                                              SizedBox(height: 8),
+                                              Text(
+                                                'Numbers:',
+                                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Wrap(
+                                                spacing: 4,
+                                                runSpacing: 4,
+                                                children: _generatedNumbers.split(',').map((num) => Container(
+                                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Color(0xFF0A3B8E),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    num.trim(),
+                                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                                  ),
+                                                )).toList(),
+                                              ),
+                                            ],
                                             SizedBox(height: 8),
                                             ElevatedButton.icon(
                                               onPressed: () {
