@@ -100,24 +100,24 @@ class BackendApiConfig {
   static Future<Map<String, dynamic>> bookTicket({
     required String token,
     required String gameId,
-    required int ticketCount,
-    required String scheduledDate,
-    required String weekDay,
-    required String timeSlot,
+    int? ticketCount,
+    String? scheduledDate,
+    String? weekDay,
+    String? timeSlot,
   }) async {
+    final body = {'gameId': gameId};
+    if (ticketCount != null) body['ticketCount'] = ticketCount;
+    if (scheduledDate != null) body['scheduledDate'] = scheduledDate;
+    if (weekDay != null) body['weekDay'] = weekDay;
+    if (timeSlot != null) body['timeSlot'] = timeSlot;
+    
     final response = await http.post(
       Uri.parse('$baseUrl/game/book'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        'gameId': gameId,
-        'ticketCount': ticketCount,
-        'scheduledDate': scheduledDate,
-        'weekDay': weekDay,
-        'timeSlot': timeSlot,
-      }),
+      body: jsonEncode(body),
     );
     
     if (response.statusCode == 200) {

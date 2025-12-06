@@ -8,9 +8,7 @@ import '../../services/game_service.dart';
 import '../../config/backend_api_config.dart';
 
 class LiveGametype1Widget extends StatefulWidget {
-  final String? gameId;
-  
-  const LiveGametype1Widget({super.key, this.gameId});
+  const LiveGametype1Widget({super.key});
 
   @override
   State<LiveGametype1Widget> createState() => _LiveGametype1WidgetState();
@@ -21,143 +19,113 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
   bool _showCustomTicketPopup = false;
   bool _isLoading = false;
   String? _gameId;
-  String? _gameStatus;
-  List<Map<String, dynamic>> _availableGames = [];
-  bool _showGameSelection = true;
-  Map<String, dynamic>? _selectedGame;
 
   @override
   void initState() {
     super.initState();
     BackgroundMusicService().play();
-    _listenToGameStatus();
-    
-    if (widget.gameId != null) {
-      _gameId = widget.gameId;
-      _showGameSelection = false;
-      _loadSlotConfiguration(widget.gameId!);
-    } else {
-      _loadAvailableGames();
-    }
   }
 
-  void _listenToGameStatus() {
-    GameService().gameStatusStream.listen((status) {
-      if (mounted) {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_gameId == null) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null && args['gameId'] != null) {
         setState(() {
-          _gameStatus = status['status'];
+          _gameId = args['gameId'];
         });
-      }
-    });
-  }
-
-  Future<void> _loadAvailableGames() async {
-    try {
-      final response = await BackendApiConfig.getAllGames();
-      if (mounted) {
-        setState(() {
-          _availableGames = List<Map<String, dynamic>>.from(response['games'] ?? [])
-              .where((game) => game['status'] == 'LIVE' || game['status'] == 'SCHEDULED')
-              .toList();
-        });
-      }
-    } catch (e) {
-      print('Error loading games: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load games: $e')),
-        );
+        _loadSlotConfig(args['gameId']);
+      } else {
+        _loadLiveGame();
       }
     }
   }
 
-  void _selectGame(Map<String, dynamic> game) {
-    setState(() {
-      _selectedGame = game;
-      _gameId = game['_id'];
-      _showGameSelection = false;
-    });
-    _loadSlotConfiguration(game['_id']);
-  }
-
-  Future<void> _loadSlotConfiguration(String gameId) async {
+  Future<void> _loadSlotConfig(String gameId) async {
     try {
       final response = await BackendApiConfig.getGameSlotConfig(gameId: gameId);
       if (mounted) {
         setState(() {
-          _model.updateSlotConfiguration(response['config']);
+          _model.loadSlotConfig(response['config']);
         });
       }
     } catch (e) {
-      print('Using default slot configuration: $e');
+      debugPrint('Failed to load slot config: $e');
+    }
+  }
+
+  Future<void> _loadLiveGame() async {
+    try {
+      final response = await BackendApiConfig.getLiveGame();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No slot configuration found for this game')),
-        );
+        setState(() {
+          _gameId = response['game']['_id'];
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _gameId = 'mock-game-id';
+        });
       }
     }
   }
 
   Future<void> _bookTicket() async {
-    if (!_model.canProceed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a day and time slot')),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
       
-      if (_gameId != null && _gameId != 'mock-game-id') {
-        final token = prefs.getString('token');
-        if (token != null) {
-          try {
-            if (_model.weekDays.isEmpty || _model.selectedWeekDay >= _model.weekDays.length) {
-              throw Exception('Invalid day selection');
-            }
-            
-            final scheduledDate = DateTime.now().add(Duration(days: 1)).toIso8601String();
-            final weekDay = _model.weekDays[_model.selectedWeekDay];
-            final timeSlot = _model.selectedTimeSlot!;
-            
-            final response = await BackendApiConfig.bookTicket(
-              token: token,
-              gameId: _gameId!,
-              ticketCount: _model.currentTicketCount,
-              scheduledDate: scheduledDate,
-              weekDay: weekDay,
-              timeSlot: timeSlot,
+      if (token != null && _gameId != null && _gameId != 'mock-game-id') {
+        try {
+          final ticketCount = _model.currentTicketCount;
+          final weekDay = _model.selectedWeekDay >= 0 ? _model.weekDays[_model.selectedWeekDay] : 'Mon';
+          final timeSlot = _model.selectedTimeSlot ?? '10:00 AM';
+          final scheduledDate = DateTime.now().add(Duration(days: _model.selectedWeekDay >= 0 ? _model.selectedWeekDay : 0)).toIso8601String();
+          
+          final response = await BackendApiConfig.bookTicket(
+            token: token,
+            gameId: _gameId!,
+            ticketCount: ticketCount,
+            scheduledDate: scheduledDate,
+            weekDay: weekDay,
+            timeSlot: timeSlot,
+          );
+          
+          final booking = response['booking'];
+          final cardNumbers = booking['cardNumbers'] as List;
+          final ticketNumbers = booking['ticketNumbers'] as List;
+          await prefs.setString('cardNumber', cardNumbers.isNotEmpty ? cardNumbers[0] : '');
+          await prefs.setString('ticketNumber', ticketNumbers.isNotEmpty ? ticketNumbers[0] : '');
+          await prefs.setString('bookingId', booking['_id']);
+          await prefs.setString('gameId', _gameId!);
+          await prefs.setString('gameCode', booking['gameCode']);
+          await prefs.setString('bookingStatus', booking['status']);
+          
+          if (mounted) {
+            GameService().startPolling();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const OrderSuccessful(),
+              ),
             );
-            
-            await prefs.setString('cardNumbers', response['booking']['cardNumbers'].join(','));
-            await prefs.setString('bookingId', response['booking']['_id']);
-            await prefs.setString('gameId', _gameId!);
-            
-            if (mounted) {
-              GameService().startPolling();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const OrderSuccessful(),
-                ),
-              );
-            }
-            return;
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(e.toString().replaceAll('Exception: ', '')),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-            setState(() => _isLoading = false);
-            return;
           }
+          return;
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(e.toString().replaceAll('Exception: ', '')),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          setState(() => _isLoading = false);
+          return;
         }
       }
       
@@ -208,186 +176,33 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
     });
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _showGameSelection ? _buildGameSelection() : _buildTicketBooking(),
-    );
-  }
-
-  Widget _buildGameSelection() {
-    return Column(
-      children: [
-        AppHeader(),
-        Expanded(
-          child: _availableGames.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Loading available games...'),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: _availableGames.length,
-                  itemBuilder: (context, index) {
-                    return _buildGameCard(_availableGames[index]);
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGameCard(Map<String, dynamic> game) {
-    final gameCode = game['gameCode'] ?? 'Unknown';
-    final status = game['status'] ?? 'SCHEDULED';
-    final scheduledTime = DateTime.tryParse(game['scheduledTime'] ?? '');
-    final totalSlots = game['totalSlots'] ?? 0;
-    final bookedSlots = game['bookedSlots'] ?? 0;
-    final availableSlots = totalSlots - bookedSlots;
-
-    Color statusColor = Colors.orange;
-    if (status == 'LIVE') statusColor = Colors.green;
-    if (status == 'COMPLETED') statusColor = Colors.grey;
-
-    return Card(
-      margin: EdgeInsets.only(bottom: 16),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: status == 'COMPLETED' ? null : () => _selectGame(game),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
+        children: [
+          Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    gameCode,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              if (scheduledTime != null)
-                Row(
-                  children: [
-                    Icon(Icons.schedule, color: Colors.white70, size: 16),
-                    SizedBox(width: 8),
-                    Text(
-                      '${scheduledTime.day}/${scheduledTime.month}/${scheduledTime.year} at ${scheduledTime.hour.toString().padLeft(2, '0')}:${scheduledTime.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.people, color: Colors.white70, size: 16),
-                  SizedBox(width: 8),
-                  Text(
-                    '$availableSlots/$totalSlots slots available',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: status == 'COMPLETED' ? null : () => _selectGame(game),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Color(0xFF1E3A8A),
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    status == 'COMPLETED' ? 'Game Ended' : 'Join Game',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTicketBooking() {
-    return Stack(
-      children: [
-        Column(
-          children: [
-            // Header
-            AppHeader(),
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                        // Back and Share buttons
+              AppHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             GestureDetector(
-                              onTap: () {
-                                if (_showGameSelection) {
-                                  Navigator.pop(context);
-                                } else {
-                                  setState(() {
-                                    _showGameSelection = true;
-                                    _selectedGame = null;
-                                    _gameId = null;
-                                  });
-                                }
-                              },
+                              onTap: () => Navigator.pop(context),
                               child: Row(
                                 children: [
                                   Icon(Icons.arrow_back, size: 20),
                                   SizedBox(width: 4),
-                                  Text(_showGameSelection ? 'Back' : 'Games',
+                                  Text('Back',
                                       style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.w500)),
@@ -416,80 +231,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                           ],
                         ),
                         SizedBox(height: 20),
-                        // Game Info
-                        if (_selectedGame != null)
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(16),
-                            margin: EdgeInsets.only(bottom: 20),
-                            decoration: BoxDecoration(
-                              color: Color(0xFF1E3A8A),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedGame!['gameCode'] ?? 'Game',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(Icons.people, color: Colors.white70, size: 16),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      '${(_selectedGame!['totalSlots'] ?? 0) - (_selectedGame!['bookedSlots'] ?? 0)} slots available',
-                                      style: TextStyle(color: Colors.white70),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        // Game Status & Numbers Button
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            if (_gameStatus != null)
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _gameStatus == 'LIVE' ? Colors.green : Colors.orange,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  _gameStatus!,
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.pushNamed(context, '/fam-playground', arguments: 'HOUSI');
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E3A8A),
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: const Text(
-                                  'Numbers',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 12),
-                        // Number Grid
                         _buildTicketsHeader(),
                         SizedBox(height: 8),
                         _buildNumberGrid(),
@@ -500,13 +241,9 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                               TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
                         SizedBox(height: 24),
-                        // Select Tickets
                         _buildTicketSelection(),
                         SizedBox(height: 24),
-                        // Time Slots
                         _buildTimeSlotsSection(),
-                        // SizedBox(height: 24),
-                        // Order Button
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -514,20 +251,22 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                             onPressed: (_model.canProceed && !_isLoading) ? _bookTicket : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Color(0xFF1E3A8A),
-                              disabledBackgroundColor: Color(0xFF1E3A8A),
+                              disabledBackgroundColor: Color(0xFF1E3A8A).withValues(alpha: 0.5),
                               disabledForegroundColor: Colors.white70,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(28),
                               ),
                             ),
-                            child: Text(
-                              _orderButtonLabel(),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? CircularProgressIndicator(color: Colors.white)
+                                : Text(
+                                    _orderButtonLabel(),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
                         SizedBox(height: 20),
@@ -538,7 +277,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ),
             ],
           ),
-          // Custom Ticket Popup Overlay
           if (_showCustomTicketPopup)
             GestureDetector(
               onTap: _hideCustomTicketDialog,
@@ -546,7 +284,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                 color: Colors.black54,
                 child: Center(
                   child: GestureDetector(
-                    onTap: () {}, // Prevent closing when tapping the popup
+                    onTap: () {},
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -568,8 +306,8 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ),
             ),
         ],
-      );
-    
+      ),
+    );
   }
 
   Widget _buildTicketsHeader() {
@@ -592,7 +330,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         return Column(
           children: [
             Container(
-              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -605,33 +342,43 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                   ),
                 ],
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'Ticket ${index + 1}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3A8A),
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tambola ticket will be generated after booking',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Table(
+                  border: TableBorder.all(color: Colors.grey[400]!, width: 1),
+                  children: _model.ticketData.map((row) {
+                    return TableRow(
+                      children: row.map((cell) {
+                        final bool isBlue = _model.blueCells.contains(cell);
+                        final bool isEmpty = cell.isEmpty;
+                        return Container(
+                          height: 45,
+                          color: isBlue
+                              ? Color(0xFF3B82F6)
+                              : isEmpty
+                                  ? Colors.grey[100]
+                                  : Colors.white,
+                          alignment: Alignment.center,
+                          child: Text(
+                            cell,
+                            style: TextStyle(
+                              color: isBlue ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
             if (index < count - 1)
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 6),
-                height: 2,
-                color: Colors.grey[300],
+                height: 6,
+                color: Colors.black,
               ),
           ],
         );
@@ -641,25 +388,19 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
 
   Widget _buildNumberCapsule() {
     final maxTickets = _model.maxTicketsPerUser;
-    List<Widget> numbers = [];
+    final availableTickets = _model.availableTickets;
+    List<int> numbers = [];
     
-    // Generate numbers based on maxTicketsPerUser
-    List<int> availableNumbers = [];
-    if (maxTickets >= 2) availableNumbers.add(2);
-    if (maxTickets >= 4) availableNumbers.add(4);
-    if (maxTickets >= 5) availableNumbers.add(5);
-    if (maxTickets == 6) availableNumbers.add(6);
-    
-    // If no predefined numbers, show 2 and maxTickets
-    if (availableNumbers.isEmpty) {
-      availableNumbers = [2, maxTickets].where((n) => n <= maxTickets).toSet().toList();
+    for (int i = 2; i <= maxTickets; i++) {
+      if (!availableTickets.contains(i)) {
+        numbers.add(i);
+      }
     }
     
-    for (int i = 0; i < availableNumbers.length; i++) {
-      if (i > 0) numbers.add(_buildDivider());
-      numbers.add(_buildNumber(availableNumbers[i].toString()));
+    if (numbers.isEmpty && maxTickets > 1) {
+      numbers = [2, maxTickets];
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
@@ -668,7 +409,10 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: numbers,
+        children: List.generate(numbers.length * 2 - 1, (index) {
+          if (index.isOdd) return _buildDivider();
+          return _buildNumber(numbers[index ~/ 2].toString());
+        }),
       ),
     );
   }
@@ -679,7 +423,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
       onTap: () {
         setState(() {
           _model.setCustomTicketCount(value);
-          _model.selectTicketType('Custom');
+          _model.selectTicketType('Custom Tickets');
           _hideCustomTicketDialog();
         });
       },
@@ -714,8 +458,8 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF0D8A3A), // light green
-            Color(0xFF005C22), // dark green
+            Color(0xFF0D8A3A),
+            Color(0xFF005C22),
           ],
         ),
         borderRadius: BorderRadius.circular(40),
@@ -729,7 +473,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
       ),
       child: Stack(
         children: [
-          // Left small bump
           Positioned(
             left: -8,
             top: 0,
@@ -742,7 +485,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ),
             ),
           ),
-          // Right small bump
           Positioned(
             right: -8,
             top: 0,
@@ -755,7 +497,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ),
             ),
           ),
-          // White text
           Center(
             child: Text(
               'Best time',
@@ -772,20 +513,13 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
   }
 
   Widget _buildTicketSelection() {
-    if (_model.ticketTypes.isEmpty) {
-      return Container(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              'Loading ticket options...',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
+    final maxTickets = _model.maxTicketsPerUser;
+    List<String> ticketOptions = _model.availableTickets
+        .map((count) => '$count Ticket')
+        .toList();
+    if (_model.availableTickets.isNotEmpty && 
+        _model.availableTickets.last < maxTickets) {
+      ticketOptions.add('Custom Tickets');
     }
 
     return Column(
@@ -794,7 +528,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Select Tickets (Max: ${_model.maxTicketsPerUser})',
+            Text('Select Tickets (Max: $maxTickets)',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -809,51 +543,34 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
           ],
         ),
         SizedBox(height: 16),
-        _buildDynamicTicketButtons(),
+        ...List.generate((ticketOptions.length / 2).ceil(), (rowIndex) {
+          final startIndex = rowIndex * 2;
+          final endIndex = (startIndex + 2).clamp(0, ticketOptions.length);
+          return Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildTicketButton(
+                    ticketOptions[startIndex],
+                    hasIcon: ticketOptions[startIndex] == 'Custom Tickets',
+                  ),
+                ),
+                if (endIndex > startIndex + 1) ...<Widget>[
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _buildTicketButton(
+                      ticketOptions[startIndex + 1],
+                      hasIcon: ticketOptions[startIndex + 1] == 'Custom Tickets',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }),
       ],
     );
-  }
-
-  Widget _buildDynamicTicketButtons() {
-    final ticketTypes = _model.ticketTypes;
-    if (ticketTypes.isEmpty) {
-      return Container(
-        padding: EdgeInsets.all(20),
-        child: Text('Loading ticket options...', 
-                   style: TextStyle(color: Colors.grey)),
-      );
-    }
-
-    List<Widget> rows = [];
-    for (int i = 0; i < ticketTypes.length; i += 2) {
-      List<Widget> rowChildren = [];
-      
-      // First button in row
-      rowChildren.add(Expanded(
-        child: _buildTicketButton(
-          ticketTypes[i], 
-          hasIcon: ticketTypes[i] == 'Custom'
-        )
-      ));
-      
-      // Second button in row (if exists)
-      if (i + 1 < ticketTypes.length) {
-        rowChildren.add(SizedBox(width: 12));
-        rowChildren.add(Expanded(
-          child: _buildTicketButton(
-            ticketTypes[i + 1], 
-            hasIcon: ticketTypes[i + 1] == 'Custom'
-          )
-        ));
-      }
-      
-      rows.add(Row(children: rowChildren));
-      if (i + 2 < ticketTypes.length) {
-        rows.add(SizedBox(height: 12));
-      }
-    }
-    
-    return Column(children: rows);
   }
 
   Widget _buildTicketButton(String type, {bool hasIcon = false}) {
@@ -863,8 +580,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         setState(() {
           _model.selectTicketType(type);
         });
-        // Show popup only for Custom
-        if (type == 'Custom') {
+        if (type == 'Custom Tickets') {
           _showCustomTicketDialog();
         }
       },
@@ -924,17 +640,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
   }
 
   String _orderButtonLabel() {
-    final count = _model.currentTicketCount;
-    final ticketText = count == 1 ? '1 ticket' : '$count tickets';
-    if (_model.selectedWeekDay != -1 && 
-        _model.selectedTimeSlot != null && 
-        _model.weekDays.isNotEmpty &&
-        _model.selectedWeekDay < _model.weekDays.length) {
-      final day = _model.weekDays[_model.selectedWeekDay];
-      final time = _model.selectedTimeSlot!;
-      return 'Order $ticketText · $day · $time';
-    }
-    return 'Order $ticketText';
+    return 'Order now | Free';
   }
 
   Widget _buildTimeSlotsSection() {
@@ -955,11 +661,11 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ),
               child: Row(
                 children: [
-                  Text('Available Days: ${_model.weekDays.length}',
+                  Text('August',
                       style:
                           TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   SizedBox(width: 4),
-                  Icon(Icons.calendar_today, size: 16),
+                  Icon(Icons.arrow_drop_down, size: 20),
                 ],
               ),
             ),
@@ -967,7 +673,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         ),
         SizedBox(height: 16),
         _buildWeekDaySelector(),
-        SizedBox(height: 16),
         _buildTimeSlotGrid(),
       ],
     );
@@ -975,11 +680,13 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
 
   Widget _buildWeekDaySelector() {
     if (_model.weekDays.isEmpty) {
-      return Container(
-        padding: EdgeInsets.all(20),
-        child: Text(
-          'No available days configured',
-          style: TextStyle(color: Colors.grey[600]),
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(
+            'Loading available days...',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
         ),
       );
     }
@@ -989,8 +696,6 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
       child: Row(
         children: List.generate(_model.weekDays.length, (index) {
           final isSelected = _model.selectedWeekDay == index;
-          final dayNumber = DateTime.now().add(Duration(days: index + 1)).day;
-          
           return Padding(
             padding: EdgeInsets.only(
                 right: index < _model.weekDays.length - 1 ? 16 : 0),
@@ -1002,42 +707,67 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 60,
+                width: 50,
                 height: 80,
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: isSelected
                     ? BoxDecoration(
                         color: Color(0xFF1E3A8A),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(30),
                       )
                     : BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: Colors.grey.shade400,
+                          color: Colors.grey.shade600,
                           width: 2,
                         ),
                       ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      _model.weekDays[index],
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
+                    isSelected
+                        ? Text(
+                            _model.weekDays[index],
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          )
+                        : const SizedBox(height: 10),
+                    Container(
+                      width: 18,
+                      height: 1.5,
+                      color: Colors.white,
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      dayNumber.toString(),
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Color(0xFF1E3A8A),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
+                    const SizedBox(height: 6),
+                    isSelected
+                        ? Text(
+                            _model.weekNumbers[index].toString(),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          )
+                        : Container(
+                            width: 32,
+                            height: 32,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1E3A8A),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _model.weekNumbers[index].toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
                   ],
                 ),
               ),
@@ -1050,26 +780,23 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
 
   Widget _buildTimeSlotGrid() {
     if (_model.timeSlots.isEmpty) {
-      return Container(
-        padding: EdgeInsets.all(40),
-        child: Column(
-          children: [
-            Icon(Icons.schedule, size: 48, color: Colors.grey[400]),
-            SizedBox(height: 16),
-            Text(
-              'No time slots configured',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            ),
-            Text(
-              'Admin needs to configure time slots for this game',
-              style: TextStyle(color: Colors.grey[500], fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ],
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.schedule, size: 48, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                'Loading time slots...',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
         ),
       );
     }
-    
+
     return GridView.builder(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),

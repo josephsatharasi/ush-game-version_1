@@ -1,36 +1,43 @@
 class LiveGametype1Model {
-  int? selectedNumber;
   String selectedTicketType = '1 Ticket';
   int selectedWeekDay = -1;
   String? selectedTimeSlot;
-  String selectedMonth = 'August';
-
-  List<String> ticketTypes = ['1 Ticket'];
   int customTicketCount = 2;
   int maxTicketsPerUser = 6;
+
   List<String> weekDays = [];
+  List<int> weekNumbers = [];
   List<Map<String, dynamic>> timeSlots = [];
+  List<int> availableTickets = [];
+
+  List<List<String>> ticketData = [
+    ['1', '', '32', '40', '', '62', '', '90'],
+    ['', '11', '29', '', '41', '', '69', '72'],
+    ['9', '13', '', '30', '', '55', '', '82'],
+  ];
+
+  Set<String> blueCells = {'32', '41', '55', '69'};
 
   int get currentTicketCount {
-    if (selectedTicketType == 'Custom') {
-      return customTicketCount.clamp(1, maxTicketsPerUser);
+    if (selectedTicketType == 'Custom Tickets') {
+      return customTicketCount;
     }
-    
-    if (selectedTicketType.startsWith('Ticket ')) {
-      final number = selectedTicketType.split(' ')[1];
-      return int.tryParse(number) ?? 1;
-    }
-    
     final match = RegExp(r'(\d+)').firstMatch(selectedTicketType);
-    if (match != null) {
-      return int.parse(match.group(1)!);
-    }
-    
-    return 1;
+    return match != null ? int.parse(match.group(1)!) : 1;
   }
 
-  void selectNumber(int number) {
-    selectedNumber = number;
+  void loadSlotConfig(Map<String, dynamic> config) {
+    maxTicketsPerUser = config['maxTicketsPerUser'] ?? 6;
+    availableTickets = List<int>.from(config['availableTickets'] ?? [1, 3, 6]);
+    weekDays = List<String>.from(config['availableWeekDays'] ?? []);
+    weekNumbers = List.generate(weekDays.length, (i) => i + 1);
+    
+    final slots = config['availableTimeSlots'] as List? ?? [];
+    timeSlots = slots.map((slot) => {
+      'time': slot['time'] as String,
+      'slots': (slot['totalSlots'] as int) - (slot['bookedSlots'] as int? ?? 0),
+      'badge': slot['badge'] as String?,
+    }).toList();
   }
 
   void selectTicketType(String type) {
@@ -38,11 +45,7 @@ class LiveGametype1Model {
   }
 
   void selectWeekDay(int index) {
-    if (selectedWeekDay == index) {
-      selectedWeekDay = -1;
-    } else {
-      selectedWeekDay = index;
-    }
+    selectedWeekDay = index;
   }
 
   void selectTimeSlot(String time) {
@@ -50,45 +53,8 @@ class LiveGametype1Model {
   }
 
   void setCustomTicketCount(int count) {
-    customTicketCount = count.clamp(1, maxTicketsPerUser);
+    customTicketCount = count;
   }
 
-  bool get canProceed => selectedWeekDay != -1 && selectedTimeSlot != null;
-
-  void updateSlotConfiguration(Map<String, dynamic> config) {
-    maxTicketsPerUser = config['maxTicketsPerUser'] ?? 6;
-    weekDays = List<String>.from(config['availableWeekDays'] ?? []);
-    
-    // Generate preset ticket options
-    ticketTypes = [];
-    if (maxTicketsPerUser >= 1) ticketTypes.add('1 Ticket');
-    if (maxTicketsPerUser >= 3) ticketTypes.add('3 Tickets');
-    if (maxTicketsPerUser >= 6) ticketTypes.add('6 Tickets');
-    
-    // Add custom option for other numbers (2, 4, 5)
-    if (maxTicketsPerUser > 1) {
-      ticketTypes.add('Custom');
-    }
-    
-    // Set default selection if current is invalid
-    if (!ticketTypes.contains(selectedTicketType)) {
-      selectedTicketType = ticketTypes.isNotEmpty ? ticketTypes.first : '1 Ticket';
-    }
-    
-    // Update time slots from backend
-    timeSlots = (config['availableTimeSlots'] as List? ?? []).map((slot) => {
-      'time': slot['time'] as String,
-      'slots': (slot['totalSlots'] as int) - (slot['bookedSlots'] as int? ?? 0),
-      'badge': slot['badge'] as String?
-    }).toList();
-    
-    // Reset selections if current selection is invalid
-    if (selectedWeekDay >= weekDays.length) {
-      selectedWeekDay = -1;
-    }
-    
-    if (selectedTimeSlot != null && !timeSlots.any((slot) => slot['time'] == selectedTimeSlot)) {
-      selectedTimeSlot = null;
-    }
-  }
+  bool get canProceed => selectedWeekDay != -1 && selectedTimeSlot != null && weekDays.isNotEmpty && timeSlots.isNotEmpty;
 }

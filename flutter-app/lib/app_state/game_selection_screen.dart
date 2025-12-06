@@ -11,8 +11,8 @@ class GameSelectionScreen extends StatefulWidget {
 
 class _GameSelectionScreenState extends State<GameSelectionScreen> {
   bool _showMenu = false;
-  List<dynamic> _liveGames = [];
   bool _isLoading = true;
+  List<Map<String, dynamic>> _games = [];
 
   @override
   void initState() {
@@ -23,22 +23,21 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
   Future<void> _fetchGames() async {
     try {
       final response = await BackendApiConfig.getAllGames();
-      print('API Response: $response');
-      setState(() {
-        _liveGames = (response['games'] as List)
-            .where((game) => game['status'] == 'LIVE' || game['status'] == 'SCHEDULED')
-            .toList();
-        _isLoading = false;
-      });
-      print('Filtered games: ${_liveGames.length}');
-    } catch (e) {
-      print('Error fetching games: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load games: $e')),
-        );
+        final allGames = (response['games'] as List).cast<Map<String, dynamic>>();
+        setState(() {
+          _games = allGames.where((game) => 
+            game['status'] == 'LIVE' || game['status'] == 'SCHEDULED'
+          ).toList();
+          _isLoading = false;
+        });
       }
-      setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -69,16 +68,15 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                                 color: Colors.black)),
                         SizedBox(height: 24),
 
-                        // Games List
-                        Expanded(
-                          child: _isLoading
-                              ? Center(child: CircularProgressIndicator())
-                              : _liveGames.isEmpty
-                                  ? Center(child: Text('No games available'))
-                                  : ListView.builder(
-                                      itemCount: _liveGames.length,
+                        _isLoading
+                            ? Center(child: CircularProgressIndicator())
+                            : _games.isEmpty
+                                ? Center(child: Text('No games available'))
+                                : Expanded(
+                                    child: ListView.builder(
+                                      itemCount: _games.length,
                                       itemBuilder: (context, index) {
-                                        final game = _liveGames[index];
+                                        final game = _games[index];
                                         return Padding(
                                           padding: EdgeInsets.only(bottom: 20),
                                           child: _buildGameCard(
@@ -90,21 +88,25 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                                                 Color(0xFFFFB74D),
                                               ],
                                             ),
-                                            title: game['gameCode'],
-                                            subtitle: game['status'],
-                                            coinValues: ['${game['bookedSlots']}', '${game['totalSlots']}'],
+                                            title: game['gameCode'] ?? 'Live Game',
+                                            subtitle: game['status'] ?? 'SCHEDULED',
+                                            coinValues: [
+                                              '${game['bookedSlots'] ?? 0}',
+                                              '${game['totalSlots'] ?? 0}'
+                                            ],
                                             isLiveGame: true,
                                             onTap: () {
-                                              Navigator.pushNamed(context, '/live-gametype1');
+                                              Navigator.pushNamed(
+                                                context,
+                                                '/live-gametype1',
+                                                arguments: {'gameId': game['_id']},
+                                              );
                                             },
                                           ),
                                         );
                                       },
                                     ),
-                        ),
-
-
-                      
+                                  ),
                       ],
                     ),
                   ),
@@ -112,49 +114,13 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
               ),
             ],
           ),
-          // Menu overlay
-          // if (_showMenu)
-          //   Positioned(
-          //     top: 140,
-          //     right: 24,
-          //     child: Container(
-          //       width: 140,
-          //       decoration: BoxDecoration(
-          //         color: Colors.white,
-          //         borderRadius: BorderRadius.circular(12),
-          //         boxShadow: [
-          //           BoxShadow(
-          //               color: Colors.black26,
-          //               blurRadius: 10,
-          //               offset: Offset(0, 4))
-          //         ],
-          //       ),
-          //       child: Column(
-          //         children: ['Settings', 'History', 'Cuppons'].map((item) {
-          //           return Container(
-          //             width: double.infinity,
-          //             padding:
-          //                 EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          //             decoration: BoxDecoration(
-          //               border: Border(
-          //                   bottom:
-          //                       BorderSide(color: Colors.grey[300]!, width: 1)),
-          //             ),
-          //             child: Text(item,
-          //                 style:
-          //                     TextStyle(fontSize: 14, color: Colors.black87)),
-          //           );
-          //         }).toList(),
-          //       ),
-          //     ),
-          //   ),
-        
         ],
       ),
     );
   }
 
   Widget _buildGameCard({
+
     required Gradient gradient,
     required String title,
     required String subtitle,
