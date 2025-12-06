@@ -225,30 +225,41 @@ class BackendApiConfig {
   }
 
   static Future<Map<String, dynamic>> getAvailableGames() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/game/available'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get available games');
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/game/available'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get available games');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
     }
   }
 
   static Future<Map<String, dynamic>> getAllGames() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/admin/games/all'),
-      headers: {'Content-Type': 'application/json'},
-    );
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Failed to fetch games');
+    try {
+      print('Fetching games from: $baseUrl/admin/games/all');
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/games/all'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 10));
+      
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Server returned ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Network error: $e');
+      throw Exception('Network error: $e');
     }
   }
 }
