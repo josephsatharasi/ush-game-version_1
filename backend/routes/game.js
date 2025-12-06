@@ -25,6 +25,19 @@ router.get('/live', async (req, res) => {
   }
 });
 
+// Get available games for users
+router.get('/available', async (req, res) => {
+  try {
+    const games = await LiveGame.find({
+      status: { $in: ['SCHEDULED', 'LIVE'] }
+    }).sort({ scheduledTime: 1 });
+    
+    res.json({ games });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get game slot configuration
 router.get('/:gameId/slot-config', async (req, res) => {
   try {

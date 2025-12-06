@@ -223,4 +223,32 @@ class BackendApiConfig {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get slot config');
     }
   }
+
+  static Future<Map<String, dynamic>> getAvailableGames() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game/available'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get available games');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getAllGames() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin/games/all'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch games');
+    }
+  }
 }

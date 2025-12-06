@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/loction_header.dart' as widgets show AppHeader;
+import '../config/backend_api_config.dart';
 
 class GameSelectionScreen extends StatefulWidget {
   const GameSelectionScreen({super.key});
@@ -10,6 +11,28 @@ class GameSelectionScreen extends StatefulWidget {
 
 class _GameSelectionScreenState extends State<GameSelectionScreen> {
   bool _showMenu = false;
+  List<dynamic> _liveGames = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGames();
+  }
+
+  Future<void> _fetchGames() async {
+    try {
+      final response = await BackendApiConfig.getAllGames();
+      setState(() {
+        _liveGames = (response['games'] as List)
+            .where((game) => game['status'] == 'LIVE' || game['status'] == 'SCHEDULED')
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +61,15 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                                 color: Colors.black)),
                         SizedBox(height: 24),
 
-                        // Live Game Card
-                              _buildGameCard(
+                        // Games List
+                        if (_isLoading)
+                          Center(child: CircularProgressIndicator())
+                        else if (_liveGames.isEmpty)
+                          Center(child: Text('No games available'))
+                        else
+                          ..._liveGames.map((game) => Padding(
+                            padding: EdgeInsets.only(bottom: 20),
+                            child: _buildGameCard(
                               gradient: LinearGradient(
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
@@ -48,34 +78,17 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
                                   Color(0xFFFFB74D),
                                 ],
                               ),
-                              title: 'Live Game',
-                              subtitle: 'Play with Friends, Family & Strangers',
-                              coinValues: ['13', '23'],
+                              title: game['gameCode'],
+                              subtitle: game['status'],
+                              coinValues: ['${game['bookedSlots']}', '${game['totalSlots']}'],
                               isLiveGame: true,
                               onTap: () {
                                 Navigator.pushNamed(context, '/live-gametype1');
                               },
                             ),
+                          )).toList(),
 
-                        SizedBox(height: 20),
-                        // FAM-JAM Card
-                        // _buildGameCard(
-                        //   gradient: LinearGradient(
-                        //     begin: Alignment.centerLeft,
-                        //     end: Alignment.centerRight,
-                        //     colors: [
-                        //       Color(0xFFEC407A),
-                        //       Color(0xFFFF4081),
-                        //     ],
-                        //   ),
-                        //   title: 'FAM-JAM',
-                        //   subtitle: 'Play with Friends & Family',
-                        //   coinValues: ['35'],
-                        //   isLiveGame: false,
-                        //   onTap: () {
-                        //     Navigator.pushNamed(context, '/fam-gametype1');
-                        //   },
-                        // ),
+
                       
                       ],
                     ),
