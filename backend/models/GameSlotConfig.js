@@ -12,7 +12,7 @@ const gameSlotConfigSchema = new mongoose.Schema({
     time: { type: String, required: true },
     totalSlots: { type: Number, required: true, min: 1 },
     bookedSlots: { type: Number, default: 0 },
-    badge: { type: String, enum: ['Best time', 'Good time', 'Low Time'], default: null }
+    badge: { type: String, enum: ['Best time', 'Good time', 'Low Time', null], default: null }
   }],
   scheduledDate: { type: Date, required: true },
   isActive: { type: Boolean, default: true },
