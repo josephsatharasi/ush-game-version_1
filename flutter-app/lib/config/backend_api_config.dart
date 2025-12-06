@@ -261,4 +261,22 @@ class BackendApiConfig {
       throw Exception('Network error: $e');
     }
   }
+
+  static Future<Map<String, dynamic>> getMyBookings({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game/my-bookings'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get bookings');
+    }
+  }
 }

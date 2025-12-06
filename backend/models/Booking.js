@@ -17,7 +17,7 @@ const bookingSchema = new mongoose.Schema({
   deliveredAt: { type: Date }
 });
 
-// Create compound index to prevent duplicate bookings for same user, game, weekDay, and timeSlot
-bookingSchema.index({ userId: 1, gameId: 1, weekDay: 1, timeSlot: 1 }, { unique: true });
+// Create compound index to prevent duplicate bookings for same user, game, ticketCount, weekDay, and timeSlot
+bookingSchema.index({ userId: 1, gameId: 1, ticketCount: 1, weekDay: 1, timeSlot: 1 }, { unique: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

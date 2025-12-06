@@ -281,7 +281,7 @@ class _HomeWidgetState extends State<HomeWidget> {
                                               _ticketNumber.isNotEmpty ? 'Ticket: $_ticketNumber' : 'No ticket booked',
                                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                             ),
-                                            if (_generatedNumbers.isNotEmpty) ..[
+                                            if (_generatedNumbers.isNotEmpty) ...[
                                               SizedBox(height: 8),
                                               Text(
                                                 'Numbers:',

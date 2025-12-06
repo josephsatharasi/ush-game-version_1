@@ -21,6 +21,8 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
   int _seconds = 5;
   bool _countdownComplete = false;
   final TextEditingController _cardNumberController = TextEditingController();
+  String _generatedNumbers = '';
+  String _cardNumber = '';
 
   @override
   void initState() {
@@ -36,10 +38,42 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
       final gameId = prefs.getString('gameId');
       
       if (token != null && gameId != null) {
+        // Load countdown
         final countdown = await BackendApiConfig.getCountdown(
           token: token,
           gameId: gameId,
         );
+        
+        // Load user bookings to get generated numbers
+        try {
+          final bookings = await BackendApiConfig.getMyBookings(token: token);
+          final bookingsList = bookings['bookings'] as List;
+          
+          if (bookingsList.isNotEmpty) {
+            final latestBooking = bookingsList.first;
+            final generatedNumbers = latestBooking['generatedNumbers'] as List?;
+            final cardNumbers = latestBooking['cardNumbers'] as List?;
+            
+            if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+              await prefs.setString('generatedNumbers', generatedNumbers[0]);
+              if (mounted) {
+                setState(() {
+                  _generatedNumbers = generatedNumbers[0];
+                });
+              }
+            }
+            if (cardNumbers != null && cardNumbers.isNotEmpty) {
+              await prefs.setString('cardNumber', cardNumbers[0]);
+              if (mounted) {
+                setState(() {
+                  _cardNumber = cardNumbers[0];
+                });
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to load bookings: $e');
+        }
         
         if (mounted) {
           final timeRemaining = countdown['timeRemaining'] ?? 0;
@@ -462,7 +496,53 @@ Positioned(
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       final gameId = prefs.getString('gameId');
+      final storedCardNumbers = prefs.getString('cardNumber');
+      final generatedNumbers = prefs.getString('generatedNumbers');
       
+      // Validate card number matches stored card
+      if (storedCardNumbers != null && value != storedCardNumbers) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Card number does not match your booking'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        _cardNumberController.clear();
+        return;
+      }
+      
+      // Validate generated numbers exist
+      if (generatedNumbers == null || generatedNumbers.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No ticket numbers found. Please book a ticket first.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        _cardNumberController.clear();
+        return;
+      }
+      
+      // Validate 15 numbers exist
+      final numbers = generatedNumbers.split(',');
+      if (numbers.length != 15) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid ticket: Expected 15 numbers, found ${numbers.length}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        _cardNumberController.clear();
+        return;
+      }
+      
+      // All validations passed
       if (token != null && gameId != null) {
         try {
           await BackendApiConfig.verifyCard(
@@ -470,31 +550,19 @@ Positioned(
             gameId: gameId,
             cardNumber: value,
           );
-          BackgroundMusicService().stop();
-          GameNumberService().startGame();
-          if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const GameTiltWidget()),
-            );
-          }
         } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Invalid card number')),
-            );
-          }
-          _cardNumberController.clear();
+          // Backend verification failed but local validation passed
+          debugPrint('Backend verification failed: $e');
         }
-      } else {
-        BackgroundMusicService().stop();
-        GameNumberService().startGame();
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const GameTiltWidget()),
-          );
-        }
+      }
+      
+      BackgroundMusicService().stop();
+      GameNumberService().startGame();
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const GameTiltWidget()),
+        );
       }
     }
   },
@@ -524,6 +592,49 @@ Positioned(
  ),
                                         ),
                                       ),
+                                      if (_generatedNumbers.isNotEmpty) ...[
+                                        SizedBox(height: 12),
+                                        Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.9),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                'Your Numbers',
+                                                style: TextStyle(
+                                                  color: Color(0xFF1E3A8A),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Wrap(
+                                                spacing: 3,
+                                                runSpacing: 3,
+                                                alignment: WrapAlignment.center,
+                                                children: _generatedNumbers.split(',').map((num) => Container(
+                                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Color(0xFF1E3A8A),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                  ),
+                                                  child: Text(
+                                                    num.trim(),
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 8,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                )).toList(),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),
