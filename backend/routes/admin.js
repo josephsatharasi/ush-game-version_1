@@ -104,7 +104,16 @@ router.post('/games/create', requireRole(['admin']), async (req, res) => {
   }
 });
 
-router.get('/games/all', requireRole(['admin']), async (req, res) => {
+router.get('/games/all', async (req, res) => {
+  try {
+    const games = await LiveGame.find().sort({ scheduledTime: -1 });
+    res.json({ games });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+router.get('/games/admin-all', requireRole(['admin']), async (req, res) => {
   try {
     const games = await LiveGame.find().sort({ scheduledTime: -1 });
     res.json({ games });

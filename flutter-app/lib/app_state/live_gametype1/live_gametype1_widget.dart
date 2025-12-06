@@ -53,13 +53,16 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
 
   Future<void> _loadAvailableGames() async {
     try {
-      final response = await BackendApiConfig.getAvailableGames();
+      final response = await BackendApiConfig.getAllGames();
       if (mounted) {
         setState(() {
-          _availableGames = List<Map<String, dynamic>>.from(response['games'] ?? []);
+          _availableGames = List<Map<String, dynamic>>.from(response['games'] ?? [])
+              .where((game) => game['status'] == 'LIVE' || game['status'] == 'SCHEDULED')
+              .toList();
         });
       }
     } catch (e) {
+      print('Error loading games: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load games: $e')),

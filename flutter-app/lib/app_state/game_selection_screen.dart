@@ -23,14 +23,21 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
   Future<void> _fetchGames() async {
     try {
       final response = await BackendApiConfig.getAllGames();
+      print('API Response: $response');
       setState(() {
         _liveGames = (response['games'] as List)
             .where((game) => game['status'] == 'LIVE' || game['status'] == 'SCHEDULED')
             .toList();
         _isLoading = false;
       });
+      print('Filtered games: ${_liveGames.length}');
     } catch (e) {
       print('Error fetching games: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load games: $e')),
+        );
+      }
       setState(() => _isLoading = false);
     }
   }
