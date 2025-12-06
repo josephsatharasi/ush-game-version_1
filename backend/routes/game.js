@@ -1,6 +1,7 @@
 const express = require('express');
 const LiveGame = require('../models/LiveGame');
 const Booking = require('../models/Booking');
+const GameSlotConfig = require('../models/GameSlotConfig');
 const auth = require('../middleware/auth');
 const cardGenerator = require('../services/cardGenerator');
 const winValidator = require('../services/winValidator');
@@ -24,18 +25,44 @@ router.get('/live', async (req, res) => {
   }
 });
 
+// Get game slot configuration
+router.get('/:gameId/slot-config', async (req, res) => {
+  try {
+    const config = await GameSlotConfig.findOne({ gameId: req.params.gameId, isActive: true });
+    if (!config) {
+      return res.status(404).json({ message: 'No slot configuration found' });
+    }
+    res.json({ config });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Book ticket
 router.post('/book', auth, async (req, res) => {
   try {
     const { gameId, ticketCount, scheduledDate, weekDay, timeSlot } = req.body;
     const userId = req.userId;
 
+    // Validate input
     if (!ticketCount || ticketCount < 1 || ticketCount > 6) {
       return res.status(400).json({ message: 'Ticket count must be between 1 and 6' });
     }
 
     if (!scheduledDate || !weekDay || !timeSlot) {
       return res.status(400).json({ message: 'Date, week day, and time slot are required' });
+    }
+
+    // Validate weekDay and timeSlot
+    const validWeekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const validTimeSlots = ['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'];
+    
+    if (!validWeekDays.includes(weekDay)) {
+      return res.status(400).json({ message: 'Invalid week day' });
+    }
+    
+    if (!validTimeSlots.includes(timeSlot)) {
+      return res.status(400).json({ message: 'Invalid time slot' });
     }
 
     const game = await LiveGame.findOne({ $or: [{ _id: gameId }, { gameCode: gameId }] });
@@ -47,18 +74,28 @@ router.post('/book', auth, async (req, res) => {
       return res.status(400).json({ message: 'Not enough slots available' });
     }
 
+    // Check if user already has a booking for this specific slot
     const existingBooking = await Booking.findOne({ 
       userId, 
       gameId: game._id, 
       weekDay, 
       timeSlot 
     });
+    
     if (existingBooking) {
-      return res.status(400).json({ message: 'You have already booked this time slot for this day' });
+      return res.status(400).json({ 
+        message: `You have already booked ${existingBooking.ticketCount} ticket(s) for ${weekDay} at ${timeSlot}. You cannot book the same time slot twice.` 
+      });
     }
 
-    const cardNumber = cardGenerator.generateCardNumber();
-    const ticketNumber = `${game.gameCode}-${String(game.bookedSlots + 1).padStart(4, '0')}`;
+    // Generate multiple card numbers and ticket numbers for the booking
+    const cardNumbers = [];
+    const ticketNumbers = [];
+    
+    for (let i = 0; i < ticketCount; i++) {
+      cardNumbers.push(cardGenerator.generateCardNumber());
+      ticketNumbers.push(`${game.gameCode}-${String(game.bookedSlots + i + 1).padStart(4, '0')}`);
+    }
 
     const booking = new Booking({
       userId,
@@ -69,13 +106,14 @@ router.post('/book', auth, async (req, res) => {
       scheduledDate: new Date(scheduledDate),
       weekDay,
       timeSlot,
-      cardNumber,
-      ticketNumber,
+      cardNumbers,
+      ticketNumbers,
       status: 'DELIVERED'
     });
 
     await booking.save();
 
+    // Update game booked slots
     game.bookedSlots += ticketCount;
     await game.save();
 
@@ -83,8 +121,8 @@ router.post('/book', auth, async (req, res) => {
       success: true,
       booking: { 
         _id: booking._id, 
-        cardNumber, 
-        ticketNumber, 
+        cardNumbers, 
+        ticketNumbers, 
         gameCode: game.gameCode,
         ticketCount,
         scheduledDate,
@@ -95,6 +133,11 @@ router.post('/book', auth, async (req, res) => {
       } 
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'You have already booked this time slot for this day. Please choose a different time slot.' 
+      });
+    }
     res.status(500).json({ message: error.message });
   }
 });
@@ -159,7 +202,11 @@ router.get('/:gameId/countdown', auth, async (req, res) => {
     res.json({
       timeRemaining,
       status: game.status,
-      booking: booking ? { cardNumber: booking.cardNumber, status: booking.status } : null
+      booking: booking ? { 
+        cardNumbers: booking.cardNumbers, 
+        ticketCount: booking.ticketCount,
+        status: booking.status 
+      } : null
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -173,7 +220,11 @@ router.post('/:gameId/verify-card', auth, async (req, res) => {
     const { cardNumber } = req.body;
     const userId = req.userId;
 
-    const booking = await Booking.findOne({ userId, gameId, cardNumber });
+    const booking = await Booking.findOne({ 
+      userId, 
+      gameId, 
+      cardNumbers: { $in: [cardNumber] } 
+    });
 
     if (!booking) {
       return res.status(400).json({ valid: false, message: 'Invalid card number' });
@@ -295,7 +346,7 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     if (winnerField) {
       game[winnerField] = {
         userId,
-        cardNumber: booking.cardNumber,
+        cardNumber: booking.cardNumbers[0], // Use first card number for winner display
         wonAt: new Date(),
         couponCode: coupon.code
       };

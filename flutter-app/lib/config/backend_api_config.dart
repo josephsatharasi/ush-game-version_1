@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BackendApiConfig {
-  // Use 10.0.2.2 for Android emulator, 127.0.0.1 for iOS simulator
-  // For physical device, use your computer's IP address (e.g., 'http://192.168.1.x:5000/api')
-  static const String baseUrl = 'http://192.168.0.22:3001/api';
+  static const String productionUrl = 'https://ush-game-version-1.onrender.com';
+  static const String localUrl = 'http://192.168.0.22:3001';
+  
+  static const String baseUrl = '$productionUrl/api';
   
   static Future<Map<String, dynamic>> register({
     required String username,
@@ -99,6 +100,10 @@ class BackendApiConfig {
   static Future<Map<String, dynamic>> bookTicket({
     required String token,
     required String gameId,
+    required int ticketCount,
+    required String scheduledDate,
+    required String weekDay,
+    required String timeSlot,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/game/book'),
@@ -106,7 +111,13 @@ class BackendApiConfig {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'gameId': gameId}),
+      body: jsonEncode({
+        'gameId': gameId,
+        'ticketCount': ticketCount,
+        'scheduledDate': scheduledDate,
+        'weekDay': weekDay,
+        'timeSlot': timeSlot,
+      }),
     );
     
     if (response.statusCode == 200) {
@@ -193,6 +204,23 @@ class BackendApiConfig {
       return jsonDecode(response.body);
     } else {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Win claim failed');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getGameSlotConfig({
+    required String gameId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game/$gameId/slot-config'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get slot config');
     }
   }
 }

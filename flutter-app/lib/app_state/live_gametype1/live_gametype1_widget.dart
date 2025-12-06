@@ -46,9 +46,9 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         setState(() {
           _gameId = response['game']['_id'];
         });
+        await _loadSlotConfiguration(_gameId!);
       }
     } catch (e) {
-      // Backend not available, use mock game ID for local testing
       if (mounted) {
         setState(() {
           _gameId = 'mock-game-id';
@@ -57,7 +57,27 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
     }
   }
 
+  Future<void> _loadSlotConfiguration(String gameId) async {
+    try {
+      final response = await BackendApiConfig.getGameSlotConfig(gameId: gameId);
+      if (mounted) {
+        setState(() {
+          _model.updateSlotConfiguration(response['config']);
+        });
+      }
+    } catch (e) {
+      print('Using default slot configuration: $e');
+    }
+  }
+
   Future<void> _bookTicket() async {
+    if (!_model.canProceed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select a day and time slot')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -67,11 +87,20 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         final token = prefs.getString('token');
         if (token != null) {
           try {
+            final scheduledDate = DateTime.now().add(Duration(days: 1)).toIso8601String();
+            final weekDay = _model.weekDays[_model.selectedWeekDay];
+            final timeSlot = _model.selectedTimeSlot!;
+            
             final response = await BackendApiConfig.bookTicket(
               token: token,
               gameId: _gameId!,
+              ticketCount: _model.currentTicketCount,
+              scheduledDate: scheduledDate,
+              weekDay: weekDay,
+              timeSlot: timeSlot,
             );
-            await prefs.setString('cardNumber', response['booking']['cardNumber']);
+            
+            await prefs.setString('cardNumbers', response['booking']['cardNumbers'].join(','));
             await prefs.setString('bookingId', response['booking']['_id']);
             await prefs.setString('gameId', _gameId!);
             

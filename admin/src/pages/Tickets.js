@@ -16,7 +16,7 @@ const Tickets = () => {
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/bookings`, {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/bookings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTickets(res.data.bookings);
@@ -30,7 +30,7 @@ const Tickets = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/admin/stats`, {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStats(res.data);

@@ -1,16 +1,17 @@
 class LiveGametype1Model {
   int? selectedNumber;
   String selectedTicketType = '1 Ticket';
-  int selectedWeekDay = 1; // Default to 'Tue' (index 1)
+  int selectedWeekDay = 1;
   String? selectedTimeSlot;
   String selectedMonth = 'August';
 
   final List<String> ticketTypes = ['1 Ticket', '3 Ticket', '6 Ticket', 'Custom Tickets'];
   int customTicketCount = 2;
-  final List<String> weekDays = ['Mon', 'Tue', 'Wed', 'Thr', 'Fri', 'Sat'];
+  int maxTicketsPerUser = 6;
+  List<String> weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   final List<int> weekNumbers = [1, 2, 3, 5, 6, 7];
   
-  final List<Map<String, dynamic>> timeSlots = [
+  List<Map<String, dynamic>> timeSlots = [
     {'time': '10:00 AM', 'slots': 20, 'badge': 'Best time'},
     {'time': '11:00 AM', 'slots': 20, 'badge': null},
     {'time': '1:00 PM', 'slots': 20, 'badge': 'Low Time'},
@@ -70,4 +71,15 @@ class LiveGametype1Model {
   }
 
   bool get canProceed => selectedWeekDay != -1 && selectedTimeSlot != null;
+
+  void updateSlotConfiguration(Map<String, dynamic> config) {
+    maxTicketsPerUser = config['maxTicketsPerUser'] ?? 6;
+    weekDays = List<String>.from(config['availableWeekDays'] ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+    
+    timeSlots = (config['availableTimeSlots'] as List? ?? []).map((slot) => {
+      'time': slot['time'] as String,
+      'slots': (slot['totalSlots'] as int) - (slot['bookedSlots'] as int? ?? 0),
+      'badge': slot['badge'] as String?
+    }).toList();
+  }
 }
