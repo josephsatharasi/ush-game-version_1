@@ -17,25 +17,7 @@ class GameEngine {
     this.io.to(gameId).emit('game:started', { gameId, startTime: game.startTime });
   }
 
-  async announceNumber(gameId, number) {
-    const game = await LiveGame.findById(gameId);
-    if (!game) throw new Error('Game not found');
-    if (game.status !== 'LIVE') throw new Error('Game is not live');
-    if (game.announcedNumbers.includes(number)) throw new Error('Number already announced');
-    if (number < 1 || number > 90) throw new Error('Invalid number');
 
-    game.announcedNumbers.push(number);
-    game.currentNumber = number;
-    await game.save();
-
-    this.io.to(gameId).emit('number:announced', {
-      number,
-      timestamp: new Date(),
-      announcedNumbers: game.announcedNumbers
-    });
-
-    return game;
-  }
 
   async endGame(gameId) {
     const game = await LiveGame.findById(gameId);

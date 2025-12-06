@@ -185,6 +185,59 @@ router.post('/:gameId/verify-card', auth, async (req, res) => {
   }
 });
 
+
+
+// Auto-generate next number
+router.post('/:gameId/next-number', auth, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    if (game.status !== 'LIVE') {
+      return res.status(400).json({ message: 'Game is not live' });
+    }
+
+    if (game.announcedNumbers.length >= 90) {
+      return res.status(400).json({ message: 'All numbers announced' });
+    }
+
+    const availableNumbers = [];
+    for (let i = 1; i <= 90; i++) {
+      if (!game.announcedNumbers.includes(i)) {
+        availableNumbers.push(i);
+      }
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+    const nextNumber = availableNumbers[randomIndex];
+
+    game.announcedNumbers.push(nextNumber);
+    game.currentNumber = nextNumber;
+    await game.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(gameId).emit('number:announced', {
+        number: nextNumber,
+        timestamp: new Date(),
+        announcedNumbers: game.announcedNumbers
+      });
+    }
+
+    res.json({
+      number: nextNumber,
+      announcedNumbers: game.announcedNumbers,
+      remaining: 90 - game.announcedNumbers.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get game status
 router.get('/:gameId/status', auth, async (req, res) => {
   try {

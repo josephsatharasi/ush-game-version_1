@@ -63,16 +63,7 @@ router.post('/games/:gameId/start', requireRole(['admin']), async (req, res) => 
   }
 });
 
-router.post('/games/:gameId/announce', requireRole(['admin']), async (req, res) => {
-  try {
-    if (!gameEngine) gameEngine = req.app.get('gameEngine');
-    const { number } = req.body;
-    const game = await gameEngine.announceNumber(req.params.gameId, number);
-    res.json({ message: 'Number announced', game });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
+
 
 router.post('/games/:gameId/end', requireRole(['admin']), async (req, res) => {
   try {

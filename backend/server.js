@@ -36,7 +36,7 @@ const adminAuthRoutes = require('./routes/admin-auth');
 app.use('/api/auth', unifiedAuthRoutes);
 app.use('/api/auth/legacy', authRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
-app.use('/api/game', gameRoutes);
+app.use('/api/game', (req, res, next) => { req.app.set('io', io); next(); }, gameRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/admin', adminRoutes);
 
@@ -63,8 +63,9 @@ io.on('connection', (socket) => {
   });
 });
 
-// Store gameEngine globally for routes
+// Store gameEngine and io globally for routes
 app.set('gameEngine', gameEngine);
+app.set('io', io);
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.IPADDRESS || '0.0.0.0';
