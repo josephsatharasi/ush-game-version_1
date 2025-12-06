@@ -2,7 +2,9 @@ const express = require('express');
 const Booking = require('../models/Booking');
 const Account = require('../models/Account');
 const LiveGame = require('../models/LiveGame');
+const Ticket = require('../models/Ticket');
 const { requireRole } = require('../middleware/roleAuth');
+const cardGenerator = require('../services/cardGenerator');
 const router = express.Router();
 
 let gameEngine;
@@ -95,11 +97,16 @@ router.post('/games/create', requireRole(['admin']), async (req, res) => {
       gameCode,
       scheduledTime: new Date(scheduledTime),
       totalSlots: totalSlots || 100,
+      bookedSlots: 0,
       status: 'SCHEDULED'
     });
 
     await game.save();
-    res.json({ message: 'Game created successfully', game });
+
+    res.json({ 
+      message: `Game created successfully with ${totalSlots || 100} slots`, 
+      game
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

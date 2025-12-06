@@ -36,23 +36,23 @@ router.post('/book', auth, async (req, res) => {
     }
 
     if (game.bookedSlots >= game.totalSlots) {
-      return res.status(400).json({ message: 'Game is full' });
+      return res.status(400).json({ message: 'No slots available' });
     }
 
     const existingBooking = await Booking.findOne({ userId, gameId: game._id });
     if (existingBooking) {
-      return res.status(400).json({ message: 'Already booked' });
+      return res.status(400).json({ message: 'You have already booked this game' });
     }
 
     const cardNumber = cardGenerator.generateCardNumber();
-    const ticketNumber = cardGenerator.generateCardNumber();
+    const ticketNumber = `${game.gameCode}-${String(game.bookedSlots + 1).padStart(4, '0')}`;
 
     const booking = new Booking({
       userId,
       gameId: game._id,
       cardNumber,
       ticketNumber,
-      status: 'PENDING'
+      status: 'DELIVERED'
     });
 
     await booking.save();
@@ -60,14 +60,17 @@ router.post('/book', auth, async (req, res) => {
     game.bookedSlots += 1;
     await game.save();
 
-    // Auto-deliver after 2 seconds
-    setTimeout(async () => {
-      booking.status = 'DELIVERED';
-      booking.deliveredAt = new Date();
-      await booking.save();
-    }, 2000);
-
-    res.json({ booking: { _id: booking._id, cardNumber, ticketNumber, status: 'PENDING' } });
+    res.json({ 
+      success: true,
+      booking: { 
+        _id: booking._id, 
+        cardNumber, 
+        ticketNumber, 
+        status: 'DELIVERED',
+        gameCode: game.gameCode,
+        scheduledTime: game.scheduledTime
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
