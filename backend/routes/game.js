@@ -27,21 +27,34 @@ router.get('/live', async (req, res) => {
 // Book ticket
 router.post('/book', auth, async (req, res) => {
   try {
-    const { gameId } = req.body;
+    const { gameId, ticketCount, scheduledDate, weekDay, timeSlot } = req.body;
     const userId = req.userId;
+
+    if (!ticketCount || ticketCount < 1 || ticketCount > 6) {
+      return res.status(400).json({ message: 'Ticket count must be between 1 and 6' });
+    }
+
+    if (!scheduledDate || !weekDay || !timeSlot) {
+      return res.status(400).json({ message: 'Date, week day, and time slot are required' });
+    }
 
     const game = await LiveGame.findOne({ $or: [{ _id: gameId }, { gameCode: gameId }] });
     if (!game) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
-    if (game.bookedSlots >= game.totalSlots) {
-      return res.status(400).json({ message: 'No slots available' });
+    if (game.bookedSlots + ticketCount > game.totalSlots) {
+      return res.status(400).json({ message: 'Not enough slots available' });
     }
 
-    const existingBooking = await Booking.findOne({ userId, gameId: game._id });
+    const existingBooking = await Booking.findOne({ 
+      userId, 
+      gameId: game._id, 
+      weekDay, 
+      timeSlot 
+    });
     if (existingBooking) {
-      return res.status(400).json({ message: 'You have already booked this game' });
+      return res.status(400).json({ message: 'You have already booked this time slot for this day' });
     }
 
     const cardNumber = cardGenerator.generateCardNumber();
@@ -50,6 +63,12 @@ router.post('/book', auth, async (req, res) => {
     const booking = new Booking({
       userId,
       gameId: game._id,
+      gameCode: game.gameCode,
+      gameType: 'LIVE',
+      ticketCount,
+      scheduledDate: new Date(scheduledDate),
+      weekDay,
+      timeSlot,
       cardNumber,
       ticketNumber,
       status: 'DELIVERED'
@@ -57,7 +76,7 @@ router.post('/book', auth, async (req, res) => {
 
     await booking.save();
 
-    game.bookedSlots += 1;
+    game.bookedSlots += ticketCount;
     await game.save();
 
     res.json({ 
@@ -66,11 +85,58 @@ router.post('/book', auth, async (req, res) => {
         _id: booking._id, 
         cardNumber, 
         ticketNumber, 
-        status: 'DELIVERED',
         gameCode: game.gameCode,
+        ticketCount,
+        scheduledDate,
+        weekDay,
+        timeSlot,
+        status: 'DELIVERED',
         scheduledTime: game.scheduledTime
       } 
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get all bookings (Admin)
+router.get('/bookings', auth, async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate('userId', 'username email')
+      .populate('gameId', 'gameCode status')
+      .sort({ bookedAt: -1 });
+
+    const formattedBookings = bookings.map(b => ({
+      _id: b._id,
+      username: b.userId?.username || 'Unknown',
+      email: b.userId?.email,
+      gameCode: b.gameCode,
+      gameType: b.gameType,
+      ticketCount: b.ticketCount,
+      scheduledDate: b.scheduledDate,
+      weekDay: b.weekDay,
+      timeSlot: b.timeSlot,
+      cardNumber: b.cardNumber,
+      status: b.status,
+      bookedAt: b.bookedAt
+    }));
+
+    res.json({ bookings: formattedBookings });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get user's bookings
+router.get('/my-bookings', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const bookings = await Booking.find({ userId })
+      .populate('gameId', 'gameCode status')
+      .sort({ bookedAt: -1 });
+
+    res.json({ bookings });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

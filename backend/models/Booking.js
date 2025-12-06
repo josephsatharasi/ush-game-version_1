@@ -10,6 +10,6 @@ const bookingSchema = new mongoose.Schema({
   deliveredAt: { type: Date }
 });
 
-bookingSchema.index({ gameId: 1, cardNumber: 1 }, { unique: true });
+bookingSchema.index({ userId: 1, gameId: 1, weekDay: 1, timeSlot: 1 }, { unique: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);
