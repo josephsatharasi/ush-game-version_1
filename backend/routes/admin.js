@@ -3,6 +3,7 @@ const Booking = require('../models/Booking');
 const Account = require('../models/Account');
 const LiveGame = require('../models/LiveGame');
 const Ticket = require('../models/Ticket');
+const GameSlotConfig = require('../models/GameSlotConfig');
 const { requireRole } = require('../middleware/roleAuth');
 const cardGenerator = require('../services/cardGenerator');
 const router = express.Router();
@@ -116,6 +117,56 @@ router.get('/games/all', requireRole(['admin']), async (req, res) => {
   try {
     const games = await LiveGame.find().sort({ scheduledTime: -1 });
     res.json({ games });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Configure game slots
+router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { maxTicketsPerUser, availableWeekDays, availableTimeSlots, scheduledDate } = req.body;
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    const existingConfig = await GameSlotConfig.findOne({ gameId });
+    if (existingConfig) {
+      existingConfig.maxTicketsPerUser = maxTicketsPerUser;
+      existingConfig.availableWeekDays = availableWeekDays;
+      existingConfig.availableTimeSlots = availableTimeSlots;
+      existingConfig.scheduledDate = new Date(scheduledDate);
+      await existingConfig.save();
+      return res.json({ message: 'Game slots updated successfully', config: existingConfig });
+    }
+
+    const config = new GameSlotConfig({
+      gameId,
+      gameCode: game.gameCode,
+      maxTicketsPerUser,
+      availableWeekDays,
+      availableTimeSlots,
+      scheduledDate: new Date(scheduledDate)
+    });
+
+    await config.save();
+    res.json({ message: 'Game slots configured successfully', config });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get game slot configuration
+router.get('/games/:gameId/slot-config', requireRole(['admin']), async (req, res) => {
+  try {
+    const config = await GameSlotConfig.findOne({ gameId: req.params.gameId });
+    if (!config) {
+      return res.status(404).json({ message: 'No slot configuration found' });
+    }
+    res.json({ config });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
