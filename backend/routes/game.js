@@ -58,12 +58,8 @@ router.post('/book', auth, async (req, res) => {
     const userId = req.userId;
 
     // Validate input
-    if (!ticketCount || ticketCount < 1 || ticketCount > 6) {
-      return res.status(400).json({ message: 'Ticket count must be between 1 and 6' });
-    }
-
-    if (!scheduledDate || !weekDay || !timeSlot) {
-      return res.status(400).json({ message: 'Date, week day, and time slot are required' });
+    if (!ticketCount || ticketCount < 1) {
+      return res.status(400).json({ message: 'Ticket count must be at least 1' });
     }
 
     // Validate weekDay and timeSlot

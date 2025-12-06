@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class BackendApiConfig {
   static const String productionUrl = 'https://ush-game-version-1.onrender.com';
@@ -105,7 +104,7 @@ class BackendApiConfig {
     String? weekDay,
     String? timeSlot,
   }) async {
-    final body = {'gameId': gameId};
+    final body = <String, dynamic>{'gameId': gameId};
     if (ticketCount != null) body['ticketCount'] = ticketCount;
     if (scheduledDate != null) body['scheduledDate'] = scheduledDate;
     if (weekDay != null) body['weekDay'] = weekDay;
