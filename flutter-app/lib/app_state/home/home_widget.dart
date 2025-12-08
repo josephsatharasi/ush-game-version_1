@@ -34,6 +34,7 @@ class _HomeWidgetState extends State<HomeWidget> {
     super.initState();
     BackgroundMusicService().play();
     _loadTicketNumber();
+    _checkAndResumeGame();
     Future.delayed(Duration(seconds: 3), _autoScroll);
   }
 
@@ -67,6 +68,36 @@ class _HomeWidgetState extends State<HomeWidget> {
       }
     } catch (e) {
       // Silently fail if backend not available
+    }
+  }
+
+  Future<void> _checkAndResumeGame() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isInGame = prefs.getBool('isInGame') ?? false;
+    final token = prefs.getString('token');
+    final gameId = prefs.getString('gameId');
+    
+    if (isInGame && token != null && gameId != null) {
+      try {
+        final status = await BackendApiConfig.getGameStatus(
+          token: token,
+          gameId: gameId,
+        );
+        
+        if (status['status'] == 'LIVE' && mounted) {
+          // Navigate back to game
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => GameStartsCountdown()),
+          );
+        } else {
+          // Game ended, clear flag
+          await prefs.setBool('isInGame', false);
+        }
+      } catch (e) {
+        // Clear flag on error
+        await prefs.setBool('isInGame', false);
+      }
     }
   }
 
@@ -106,8 +137,14 @@ class _HomeWidgetState extends State<HomeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
+    return WillPopScope(
+      onWillPop: () async {
+        // Exit app instead of navigating back
+        SystemNavigator.pop();
+        return false;
+      },
+      child: Scaffold(
+        body: Stack(
         children: [
           Column(
             children: [
@@ -408,6 +445,7 @@ class _HomeWidgetState extends State<HomeWidget> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

@@ -486,92 +486,88 @@ Positioned(
                                             child: TextField(
   controller: _cardNumberController,
   textAlign: TextAlign.center,
-  keyboardType: TextInputType.number,
-  maxLength: 5,
-  obscureText: true,
-  obscuringCharacter: 'x',
+  keyboardType: TextInputType.text,
+  maxLines: 1,
 
   onChanged: (value) async {
-    if (value.length == 5) {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-      final gameId = prefs.getString('gameId');
-      final storedCardNumbers = prefs.getString('cardNumber');
-      final generatedNumbers = prefs.getString('generatedNumbers');
+    // Check if input matches pattern: space-separated numbers
+    final trimmed = value.trim();
+    if (trimmed.isNotEmpty && !trimmed.endsWith(' ')) {
+      // Parse input numbers
+      final inputNumbers = trimmed.split(' ').where((s) => s.isNotEmpty).map((s) => s.trim()).toList();
       
-      // Validate card number matches stored card
-      if (storedCardNumbers != null && value != storedCardNumbers) {
+      // Check if we have exactly 15 numbers
+      if (inputNumbers.length == 15) {
+        final prefs = await SharedPreferences.getInstance();
+        final generatedNumbers = prefs.getString('generatedNumbers');
+        
+        // Validate generated numbers exist
+        if (generatedNumbers == null || generatedNumbers.isEmpty) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('No ticket numbers found. Please book a ticket first.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          _cardNumberController.clear();
+          return;
+        }
+        
+        // Get stored numbers
+        final storedNumbers = generatedNumbers.split(',').map((s) => s.trim()).toSet();
+        final inputSet = inputNumbers.toSet();
+        
+        // Validate all input numbers match stored numbers
+        if (inputSet.length != 15) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Duplicate numbers found. Please enter 15 unique numbers.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          _cardNumberController.clear();
+          return;
+        }
+        
+        // Check if all input numbers exist in stored numbers
+        final allMatch = inputSet.every((num) => storedNumbers.contains(num));
+        
+        if (!allMatch) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Numbers do not match your ticket. Please check and try again.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          _cardNumberController.clear();
+          return;
+        }
+        
+        // All validations passed - Set game flag
+        await prefs.setBool('isInGame', true);
+        BackgroundMusicService().stop();
+        GameNumberService().startGame();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Card number does not match your booking'),
-              backgroundColor: Colors.red,
-            ),
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const GameTiltWidget()),
           );
         }
-        _cardNumberController.clear();
-        return;
-      }
-      
-      // Validate generated numbers exist
-      if (generatedNumbers == null || generatedNumbers.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('No ticket numbers found. Please book a ticket first.'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        _cardNumberController.clear();
-        return;
-      }
-      
-      // Validate 15 numbers exist
-      final numbers = generatedNumbers.split(',');
-      if (numbers.length != 15) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Invalid ticket: Expected 15 numbers, found ${numbers.length}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        _cardNumberController.clear();
-        return;
-      }
-      
-      // All validations passed
-      if (token != null && gameId != null) {
-        try {
-          await BackendApiConfig.verifyCard(
-            token: token,
-            gameId: gameId,
-            cardNumber: value,
-          );
-        } catch (e) {
-          // Backend verification failed but local validation passed
-          debugPrint('Backend verification failed: $e');
-        }
-      }
-      
-      BackgroundMusicService().stop();
-      GameNumberService().startGame();
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const GameTiltWidget()),
-        );
       }
     }
   },
 
   decoration: InputDecoration(
-    labelText: 'Enter your card number',
-    labelStyle: TextStyle(
-      color: Color(0xFF1E3A8A),
-      fontSize: 12,
+    hintText: 'Enter 15 numbers (space-separated)',
+    hintStyle: TextStyle(
+      color: Color(0xFF1E3A8A).withOpacity(0.5),
+      fontSize: 10,
     ),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(20),
@@ -579,14 +575,12 @@ Positioned(
     ),
     filled: true,
     fillColor: Colors.white,
-    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    counterText: '',
+    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
   ),
   style: TextStyle(
     color: Color(0xFF1E3A8A),
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: FontWeight.bold,
-    letterSpacing: 2,
   ),
 ),
  ),

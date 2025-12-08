@@ -77,7 +77,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _showCoinPop() {
-    _currentNumber = Random().nextInt(90) + 1;
+    // Generate new number only if current is 0
+    if (_currentNumber == 0) {
+      _currentNumber = Random().nextInt(90) + 1;
+    }
+    
     setState(() {
       _showCoin = true;
     });
@@ -89,30 +93,13 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           setState(() {
             _showCoin = false;
           });
-          _playRepeatShake();
+          // Don't repeat - stop after one cycle
         });
       });
     });
   }
 
-  void _playRepeatShake() {
-    _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
-    _currentJarFrame = 5;
-    int shakeCount = 0;
-    
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
-      setState(() {
-        _currentJarFrame = _currentJarFrame == 5 ? 6 : 5;
-        shakeCount++;
-        
-        if (shakeCount >= 4) {
-          timer.cancel();
-          _audioPlayer.stop();
-          _showCoinPop();
-        }
-      });
-    });
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -326,9 +313,9 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         setState(() {
           _model.selectCardType(name);
         });
-        // Navigate to the corresponding game tilt screen
+        // Navigate with current number
         if (name == 'HOUSI') {
-          Navigator.pushNamed(context, '/game-tilt-housi');
+          Navigator.pushNamed(context, '/game-tilt-housi', arguments: _currentNumber);
         }
       },
       child: Container(
@@ -397,15 +384,15 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         setState(() {
           _model.selectCardType(name);
         });
-        // Navigate to the corresponding game tilt screen
+        // Navigate with current number
         if (name == 'FIRST LINE') {
-          Navigator.pushNamed(context, '/game-tilt-first');
+          Navigator.pushNamed(context, '/game-tilt-first', arguments: _currentNumber);
         } else if (name == 'SECOND LINE') {
-          Navigator.pushNamed(context, '/game-tilt-second');
+          Navigator.pushNamed(context, '/game-tilt-second', arguments: _currentNumber);
         } else if (name == 'THIRD LINE') {
-          Navigator.pushNamed(context, '/game-tilt-third');
+          Navigator.pushNamed(context, '/game-tilt-third', arguments: _currentNumber);
         } else if (name == 'JALDHI') {
-          Navigator.pushNamed(context, '/game-tilt-jaldhi');
+          Navigator.pushNamed(context, '/game-tilt-jaldhi', arguments: _currentNumber);
         }
       },
       child: Container(
