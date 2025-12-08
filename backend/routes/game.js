@@ -255,6 +255,26 @@ router.post('/:gameId/verify-card', auth, async (req, res) => {
 
 
 
+// Get announced numbers
+router.get('/:gameId/announced-numbers', auth, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    res.json({
+      announcedNumbers: game.announcedNumbers,
+      currentNumber: game.currentNumber,
+      remaining: 90 - game.announcedNumbers.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Auto-generate next number
 router.post('/:gameId/next-number', auth, async (req, res) => {
   try {
