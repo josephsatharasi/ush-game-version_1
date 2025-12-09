@@ -84,18 +84,17 @@ router.post('/book', auth, async (req, res) => {
       return res.status(400).json({ message: 'Not enough slots available' });
     }
 
-    // Check if user already has a booking for this specific ticket count, weekDay, and timeSlot
+    // Check if user already has ANY booking for this weekDay and timeSlot (regardless of ticket count)
     const existingBooking = await Booking.findOne({ 
       userId, 
       gameId: game._id,
-      ticketCount,
       weekDay, 
       timeSlot 
     });
     
     if (existingBooking) {
       return res.status(400).json({ 
-        message: `You have already booked ${ticketCount} ticket(s) for ${weekDay} at ${timeSlot}. Please choose a different ticket count or time slot.` 
+        message: `You have already booked ${weekDay} at ${timeSlot}. Please choose a different time slot.` 
       });
     }
 
