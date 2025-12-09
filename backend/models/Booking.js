@@ -12,7 +12,7 @@ const bookingSchema = new mongoose.Schema({
   cardNumbers: [{ type: String, required: true }],
   ticketNumbers: [{ type: String, required: true }],
   generatedNumbers: [{ type: String }],
-  status: { type: String, enum: ['PENDING', 'DELIVERED'], default: 'PENDING' },
+  status: { type: String, enum: ['PENDING', 'DELIVERED', 'EXPIRED'], default: 'PENDING' },
   bookedAt: { type: Date, default: Date.now },
   deliveredAt: { type: Date }
 });

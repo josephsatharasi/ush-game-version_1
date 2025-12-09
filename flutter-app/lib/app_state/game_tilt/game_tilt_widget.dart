@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'game_tilt_model.dart';
 import '../../widgets/loction_header.dart';
+import '../../config/backend_api_config.dart';
 
 class GameTiltWidget extends StatefulWidget {
   const GameTiltWidget({super.key});
@@ -18,12 +19,14 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   final GameTiltModel _model = GameTiltModel();
   int _currentJarFrame = 1;
   Timer? _animationTimer;
+  Timer? _numberFetchTimer;
   bool _showCoin = false;
   late AnimationController _coinAnimationController;
   late Animation<double> _coinAnimation;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts();
   int _currentNumber = 0;
+  List<int> _announcedNumbers = [];
 
   @override
   void initState() {
@@ -36,7 +39,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       CurvedAnimation(parent: _coinAnimationController, curve: Curves.easeInOut),
     );
     _initTts();
-    _startAnimation();
+    _fetchAnnouncedNumber();
   }
 
   Future<void> _initTts() async {
@@ -49,51 +52,125 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   @override
   void dispose() {
     _animationTimer?.cancel();
+    _numberFetchTimer?.cancel();
     _coinAnimationController.dispose();
     _audioPlayer.dispose();
+    _flutterTts.stop();
     super.dispose();
   }
 
-  void _startAnimation() {
-    _currentJarFrame = 1;
-    _playInitialJarShake();
+  Future<void> _fetchAnnouncedNumber() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final gameId = prefs.getString('gameId');
+      
+      if (token != null && gameId != null) {
+        final result = await BackendApiConfig.getAnnouncedNumbers(
+          token: token,
+          gameId: gameId,
+        );
+        
+        if (mounted) {
+          final newNumber = result['currentNumber'] ?? 0;
+          final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
+          
+          if (newNumber > 0 && newNumber != _currentNumber) {
+            setState(() {
+              _currentNumber = newNumber;
+              _announcedNumbers = announcedList;
+            });
+            _showCoinPop();
+          }
+        }
+      }
+      
+      _startContinuousAnimation();
+      _startNumberPolling();
+    } catch (e) {
+      debugPrint('Failed to fetch announced number: $e');
+      _startContinuousAnimation();
+    }
   }
 
-  void _playInitialJarShake() {
-    _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
-    int frameCount = 0;
+  void _startContinuousAnimation() {
+    if (_animationTimer != null && _animationTimer!.isActive) return;
+    
     _animationTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() {
         _currentJarFrame = (_currentJarFrame % 6) + 1;
-        frameCount++;
-        
-        if (frameCount >= 6) {
-          timer.cancel();
-          _audioPlayer.stop();
-          _showCoinPop();
-        }
       });
     });
   }
 
+  void _startNumberPolling() {
+    if (_numberFetchTimer != null && _numberFetchTimer!.isActive) return;
+    
+    _numberFetchTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('token');
+        final gameId = prefs.getString('gameId');
+        
+        if (token != null && gameId != null) {
+          final result = await BackendApiConfig.getAnnouncedNumbers(
+            token: token,
+            gameId: gameId,
+          );
+          
+          if (!mounted) return;
+          
+          final newNumber = result['currentNumber'] ?? 0;
+          final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
+          
+          if (newNumber > 0 && newNumber != _currentNumber) {
+            setState(() {
+              _currentNumber = newNumber;
+              _announcedNumbers = announcedList;
+            });
+            _showCoinPop();
+          }
+        }
+      } catch (e) {
+        debugPrint('Failed to poll number: $e');
+      }
+    });
+  }
+
   void _showCoinPop() {
-    // Generate new number only if current is 0
-    if (_currentNumber == 0) {
-      _currentNumber = Random().nextInt(90) + 1;
+    if (_currentNumber == 0 || !mounted) return;
+    
+    if (mounted) {
+      setState(() {
+        _showCoin = true;
+      });
     }
     
-    setState(() {
-      _showCoin = true;
-    });
+    _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
     
     _coinAnimationController.forward(from: 0).then((_) {
+      if (!mounted) return;
       _flutterTts.speak(_currentNumber.toString());
-      Timer(const Duration(seconds: 4), () {
+      _audioPlayer.stop();
+      
+      Timer(const Duration(seconds: 3), () {
+        if (!mounted) return;
         _coinAnimationController.reverse().then((_) {
-          setState(() {
-            _showCoin = false;
-          });
-          // Don't repeat - stop after one cycle
+          if (!mounted) return;
+          if (mounted) {
+            setState(() {
+              _showCoin = false;
+            });
+          }
         });
       });
     });
@@ -103,9 +180,30 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
+    return WillPopScope(
+      onWillPop: () async {
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Exit Game?'),
+            content: const Text('Do you want to exit the game?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
+        );
+        return shouldExit ?? false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Column(
         children: [
           const AppHeader(),
           // Content
@@ -152,26 +250,50 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                             );
                           },
                         ),
-                        // Numbers button
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.pushNamed(context, '/fam-playground', arguments: 'FIRST LINE');
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 28, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E3A8A),
-                              borderRadius: BorderRadius.circular(25),
+                        Row(
+                          children: [
+                            // Ticket button
+                            GestureDetector(
+                              onTap: () => _showTicketDialog(),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF059669),
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                child: const Text(
+                                  'Ticket',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
                             ),
-                            child: const Text(
-                              'Numbers',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600),
+                            const SizedBox(width: 10),
+                            // Numbers button
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pushNamed(context, '/fam-playground', arguments: 'FIRST LINE');
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E3A8A),
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                child: const Text(
+                                  'Numbers',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
@@ -252,6 +374,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -377,23 +500,139 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     );
   }
 
-  Widget _buildCardButtonWithNumber(String name, Color color, String number) {
+  void _showTicketDialog() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please login first')),
+          );
+        }
+        return;
+      }
+      
+      final bookings = await BackendApiConfig.getMyBookings(token: token);
+      final bookingsList = bookings['bookings'] as List;
+      
+      if (bookingsList.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No tickets found')),
+          );
+        }
+        return;
+      }
+      
+      final latestBooking = bookingsList.first;
+      final ticketNumbers = latestBooking['ticketNumbers'] as List?;
+      final generatedNumbers = latestBooking['generatedNumbers'] as List?;
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Your Tickets', style: TextStyle(fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (generatedNumbers != null)
+                    ...List.generate(generatedNumbers.length, (index) {
+                      final ticket = generatedNumbers[index];
+                      final ticketId = ticketNumbers?[index] ?? 'Ticket ${index + 1}';
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (index > 0) const Divider(height: 24),
+                          Text(
+                            ticketId,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF059669),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (ticket is Map)
+                            ...[
+                              _buildTicketLine('1st Line', (ticket['firstLine'] as List?)?.cast<int>() ?? []),
+                              const SizedBox(height: 12),
+                              _buildTicketLine('2nd Line', (ticket['secondLine'] as List?)?.cast<int>() ?? []),
+                              const SizedBox(height: 12),
+                              _buildTicketLine('3rd Line', (ticket['thirdLine'] as List?)?.cast<int>() ?? []),
+                            ],
+                        ],
+                      );
+                    }),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load tickets: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Widget _buildTicketLine(String lineName, List<int> numbers) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          lineName,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1E3A8A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: numbers.map((num) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E3A8A),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              num.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          )).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCardButtonWithNumber(String name, Color color, String displayNumber) {
     final isSelected = _model.selectedCardType == name;
     return GestureDetector(
       onTap: () {
         setState(() {
           _model.selectCardType(name);
         });
-        // Navigate with current number
-        if (name == 'FIRST LINE') {
-          Navigator.pushNamed(context, '/game-tilt-first', arguments: _currentNumber);
-        } else if (name == 'SECOND LINE') {
-          Navigator.pushNamed(context, '/game-tilt-second', arguments: _currentNumber);
-        } else if (name == 'THIRD LINE') {
-          Navigator.pushNamed(context, '/game-tilt-third', arguments: _currentNumber);
-        } else if (name == 'JALDHI') {
-          Navigator.pushNamed(context, '/game-tilt-jaldhi', arguments: _currentNumber);
-        }
       },
       child: Container(
         height: 50,
@@ -430,7 +669,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               bottom: 0,
               child: Center(
                 child: Text(
-                  number,
+                  displayNumber,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.3),
                     fontSize: 50,

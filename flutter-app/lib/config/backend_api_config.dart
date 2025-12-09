@@ -279,4 +279,23 @@ class BackendApiConfig {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get bookings');
     }
   }
+
+  static Future<Map<String, dynamic>> getAnnouncedNumbers({
+    required String token,
+    required String gameId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game/$gameId/announced-numbers'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get announced numbers');
+    }
+  }
 }

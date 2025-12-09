@@ -372,8 +372,8 @@ Positioned(
                              // Navigator.pushNamed(context, '/famjar-tilt');
                             },
                             child: Container(
-                              width: 290,
-                              height: 290,
+                              width: 310,
+                              height: 340,
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
@@ -476,13 +476,13 @@ Positioned(
                                           }
                                         },
                                         child: Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                           decoration: BoxDecoration(
                                             color: Colors.white,
                                             borderRadius: BorderRadius.circular(20),
                                           ),
                                           child: SizedBox(
-                                            width: 140,
+                                            width: 220,
                                             child: TextField(
   controller: _cardNumberController,
   textAlign: TextAlign.center,
@@ -564,10 +564,10 @@ Positioned(
   },
 
   decoration: InputDecoration(
-    hintText: 'Enter 15 numbers (space-separated)',
+    hintText: '4050536866897278',
     hintStyle: TextStyle(
       color: Color(0xFF1E3A8A).withOpacity(0.5),
-      fontSize: 10,
+      fontSize: 14,
     ),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(20),
@@ -575,11 +575,11 @@ Positioned(
     ),
     filled: true,
     fillColor: Colors.white,
-    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
   ),
   style: TextStyle(
     color: Color(0xFF1E3A8A),
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: FontWeight.bold,
   ),
 ),
@@ -587,9 +587,10 @@ Positioned(
                                         ),
                                       ),
                                       if (_generatedNumbers.isNotEmpty) ...[
-                                        SizedBox(height: 12),
+                                        SizedBox(height: 16),
                                         Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          width: 240,
+                                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                           decoration: BoxDecoration(
                                             color: Colors.white.withOpacity(0.9),
                                             borderRadius: BorderRadius.circular(12),
@@ -600,17 +601,17 @@ Positioned(
                                                 'Your Numbers',
                                                 style: TextStyle(
                                                   color: Color(0xFF1E3A8A),
-                                                  fontSize: 10,
+                                                  fontSize: 12,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                              SizedBox(height: 4),
+                                              SizedBox(height: 6),
                                               Wrap(
-                                                spacing: 3,
-                                                runSpacing: 3,
+                                                spacing: 4,
+                                                runSpacing: 4,
                                                 alignment: WrapAlignment.center,
                                                 children: _generatedNumbers.split(',').map((num) => Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                                   decoration: BoxDecoration(
                                                     color: Color(0xFF1E3A8A),
                                                     borderRadius: BorderRadius.circular(4),
@@ -619,7 +620,7 @@ Positioned(
                                                     num.trim(),
                                                     style: TextStyle(
                                                       color: Colors.white,
-                                                      fontSize: 8,
+                                                      fontSize: 10,
                                                       fontWeight: FontWeight.bold,
                                                     ),
                                                   ),

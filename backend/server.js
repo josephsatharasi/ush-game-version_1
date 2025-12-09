@@ -10,9 +10,11 @@ const gameRoutes = require('./routes/game');
 const couponRoutes = require('./routes/coupon');
 const adminRoutes = require('./routes/admin');
 const GameEngine = require('./services/gameEngine');
+const { scheduleCleanup } = require('./jobs/cleanupScheduler');
 
 dotenv.config();
 connectDB();
+scheduleCleanup();
 
 const app = express();
 const server = http.createServer(app);

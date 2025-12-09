@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const cardGenerator = require('../services/cardGenerator');
 const winValidator = require('../services/winValidator');
 const couponGenerator = require('../services/couponGenerator');
+const TicketCleanupService = require('../services/ticketCleanup');
 const router = express.Router();
 
 // Get next live game
@@ -188,7 +189,7 @@ router.get('/bookings', auth, async (req, res) => {
   }
 });
 
-// Get user's bookings
+// Get user's bookings (only active ones)
 router.get('/my-bookings', auth, async (req, res) => {
   try {
     const userId = req.userId;
@@ -196,7 +197,10 @@ router.get('/my-bookings', auth, async (req, res) => {
       .populate('gameId', 'gameCode status')
       .sort({ bookedAt: -1 });
 
-    res.json({ bookings });
+    // Filter out expired bookings
+    const activeBookings = await TicketCleanupService.filterActiveBookings(bookings);
+
+    res.json({ bookings: activeBookings });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -319,6 +323,26 @@ router.post('/:gameId/next-number', auth, async (req, res) => {
     res.json({
       number: nextNumber,
       announcedNumbers: game.announcedNumbers,
+      remaining: 90 - game.announcedNumbers.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get announced numbers
+router.get('/:gameId/announced-numbers', auth, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    res.json({
+      announcedNumbers: game.announcedNumbers,
+      currentNumber: game.currentNumber,
       remaining: 90 - game.announcedNumbers.length
     });
   } catch (error) {
