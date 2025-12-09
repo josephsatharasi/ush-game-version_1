@@ -1,15 +1,27 @@
 class CardGenerator {
   generateCardNumber() {
-    return Math.floor(10000 + Math.random() * 90000).toString();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
   }
 
   generateTicketNumbers() {
-    const numbers = new Set();
-    while (numbers.size < 15) {
+    const allNumbers = new Set();
+    while (allNumbers.size < 15) {
       const num = Math.floor(Math.random() * 90) + 1;
-      numbers.add(num);
+      allNumbers.add(num);
     }
-    return Array.from(numbers).sort((a, b) => a - b).join(',');
+    
+    const sortedNumbers = Array.from(allNumbers).sort((a, b) => a - b);
+    
+    return {
+      firstLine: sortedNumbers.slice(0, 5),
+      secondLine: sortedNumbers.slice(5, 10),
+      thirdLine: sortedNumbers.slice(10, 15)
+    };
   }
 }
 

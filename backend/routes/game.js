@@ -214,6 +214,40 @@ router.get('/my-bookings', auth, async (req, res) => {
   }
 });
 
+// Get specific booking by ID
+router.get('/booking/:bookingId', auth, async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const userId = req.userId;
+
+    const booking = await Booking.findOne({ _id: bookingId, userId })
+      .populate('gameId', 'gameCode status scheduledTime');
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    res.json({
+      success: true,
+      booking: {
+        _id: booking._id,
+        cardNumbers: booking.cardNumbers,
+        ticketNumbers: booking.ticketNumbers,
+        generatedNumbers: booking.generatedNumbers,
+        gameCode: booking.gameCode,
+        ticketCount: booking.ticketCount,
+        scheduledDate: booking.scheduledDate,
+        weekDay: booking.weekDay,
+        timeSlot: booking.timeSlot,
+        status: booking.status,
+        scheduledTime: booking.gameId?.scheduledTime
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get countdown
 router.get('/:gameId/countdown', auth, async (req, res) => {
   try {
@@ -387,10 +421,14 @@ router.get('/:gameId/status', auth, async (req, res) => {
 router.post('/:gameId/claim-win', auth, async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { winType } = req.body;
+    const { winType, cardNumber } = req.body;
     const userId = req.userId;
 
-    const validation = await winValidator.validateWin(gameId, userId, winType);
+    if (!cardNumber) {
+      return res.status(400).json({ valid: false, message: 'Card number is required' });
+    }
+
+    const validation = await winValidator.validateWin(gameId, userId, winType, cardNumber);
     if (!validation.valid) {
       return res.status(400).json({ valid: false, message: validation.reason });
     }
@@ -415,7 +453,7 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     if (winnerField) {
       game[winnerField] = {
         userId,
-        cardNumber: booking.cardNumbers[0], // Use first card number for winner display
+        cardNumber: cardNumber,
         wonAt: new Date(),
         couponCode: coupon.code
       };
