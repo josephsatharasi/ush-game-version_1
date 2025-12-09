@@ -22,7 +22,6 @@ const Sidebar = ({ onLogout, isOpen, onClose }) => {
     { icon: Users, label: 'Users', path: '/users' },
     { icon: GamepadIcon, label: 'Games', path: '/games' },
     { icon: GamepadIcon, label: 'Create Game', path: '/create-game' },
-    { icon: GamepadIcon, label: 'Game Control', path: '/game-control' },
     { icon: Ticket, label: 'Tickets', path: '/tickets' },
     { icon: Award, label: 'Winners', path: '/winners' },
     // { icon: Trophy, label: 'Leaderboard', path: '/leaderboard' },

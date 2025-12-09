@@ -6,7 +6,6 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Games from './pages/Games';
 import CreateGame from './pages/CreateGame';
-import GameControl from './pages/GameControl';
 import Tickets from './pages/Tickets';
 import Winners from './pages/Winners';
 import Register from './pages/Register';
@@ -65,7 +64,6 @@ function App() {
               <Route path="/users" element={<Users />} />
               <Route path="/games" element={<Games />} />
               <Route path="/create-game" element={<CreateGame />} />
-              <Route path="/game-control" element={<GameControl />} />
               <Route path="/tickets" element={<Tickets />} />
               <Route path="/winners" element={<Winners />} />
               {/* <Route path="/leaderboard" element={<Leaderboard />} /> */}
