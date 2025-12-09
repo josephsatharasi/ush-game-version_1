@@ -8,6 +8,7 @@ import Games from './pages/Games';
 import CreateGame from './pages/CreateGame';
 import GameControl from './pages/GameControl';
 import Tickets from './pages/Tickets';
+import Winners from './pages/Winners';
 import Register from './pages/Register';
 import Login from './pages/Login';
 
@@ -66,6 +67,7 @@ function App() {
               <Route path="/create-game" element={<CreateGame />} />
               <Route path="/game-control" element={<GameControl />} />
               <Route path="/tickets" element={<Tickets />} />
+              <Route path="/winners" element={<Winners />} />
               {/* <Route path="/leaderboard" element={<Leaderboard />} /> */}
               {/* <Route path="/rewards" element={<Rewards />} /> */}
               {/* <Route path="/analytics" element={<Analytics />} /> */}

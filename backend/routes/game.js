@@ -417,7 +417,7 @@ router.get('/:gameId/status', auth, async (req, res) => {
   }
 });
 
-// Claim win
+// Claim win (without coupon generation)
 router.post('/:gameId/claim-win', auth, async (req, res) => {
   try {
     const { gameId } = req.params;
@@ -438,8 +438,6 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
       return res.status(400).json({ valid: false, message: 'No booking found' });
     }
 
-    const coupon = await couponGenerator.createCoupon(userId, gameId, winType);
-
     const game = await LiveGame.findById(gameId);
     const winTypeMap = {
       'FIRST_LINE': 'firstLineWinner',
@@ -455,16 +453,154 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
         userId,
         cardNumber: cardNumber,
         wonAt: new Date(),
-        couponCode: coupon.code
+        couponCode: null
       };
     }
     await game.save();
 
     res.json({
       valid: true,
-      couponId: coupon._id,
-      message: 'Congratulations! You won!'
+      message: 'Congratulations! You won! Admin will assign your coupon code soon.'
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get winners list for a game (Admin)
+router.get('/:gameId/winners', auth, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    const winners = [];
+
+    const winTypes = [
+      { type: 'FIRST_LINE', field: 'firstLineWinner' },
+      { type: 'SECOND_LINE', field: 'secondLineWinner' },
+      { type: 'THIRD_LINE', field: 'thirdLineWinner' },
+      { type: 'JALDI', field: 'jaldiWinner' },
+      { type: 'HOUSIE', field: 'housieWinner' }
+    ];
+
+    for (const { type, field } of winTypes) {
+      if (game[field] && game[field].userId) {
+        const booking = await Booking.findOne({ 
+          userId: game[field].userId, 
+          gameId 
+        }).populate('userId', 'username email phone');
+
+        winners.push({
+          winType: type,
+          userId: game[field].userId,
+          username: booking?.userId?.username || 'Unknown',
+          email: booking?.userId?.email,
+          phone: booking?.userId?.phone,
+          cardNumber: game[field].cardNumber,
+          wonAt: game[field].wonAt,
+          couponCode: game[field].couponCode,
+          hasCoupon: !!game[field].couponCode
+        });
+      }
+    }
+
+    res.json({ 
+      gameCode: game.gameCode,
+      gameStatus: game.status,
+      winners 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Admin assigns coupon code to winner
+router.post('/:gameId/assign-coupon', auth, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { winType, couponCode } = req.body;
+
+    if (!winType || !couponCode) {
+      return res.status(400).json({ message: 'winType and couponCode are required' });
+    }
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    const winTypeMap = {
+      'FIRST_LINE': 'firstLineWinner',
+      'SECOND_LINE': 'secondLineWinner',
+      'THIRD_LINE': 'thirdLineWinner',
+      'JALDI': 'jaldiWinner',
+      'HOUSIE': 'housieWinner'
+    };
+
+    const winnerField = winTypeMap[winType];
+    if (!winnerField || !game[winnerField]) {
+      return res.status(404).json({ message: 'Winner not found for this win type' });
+    }
+
+    game[winnerField].couponCode = couponCode;
+    await game.save();
+
+    res.json({ 
+      success: true,
+      message: 'Coupon code assigned successfully',
+      winner: game[winnerField]
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get user's coupon codes
+router.get('/my-coupons', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const games = await LiveGame.find({
+      $or: [
+        { 'firstLineWinner.userId': userId },
+        { 'secondLineWinner.userId': userId },
+        { 'thirdLineWinner.userId': userId },
+        { 'jaldiWinner.userId': userId },
+        { 'housieWinner.userId': userId }
+      ]
+    });
+
+    const coupons = [];
+
+    games.forEach(game => {
+      const winTypes = [
+        { type: 'FIRST_LINE', field: 'firstLineWinner' },
+        { type: 'SECOND_LINE', field: 'secondLineWinner' },
+        { type: 'THIRD_LINE', field: 'thirdLineWinner' },
+        { type: 'JALDI', field: 'jaldiWinner' },
+        { type: 'HOUSIE', field: 'housieWinner' }
+      ];
+
+      winTypes.forEach(({ type, field }) => {
+        if (game[field] && game[field].userId.toString() === userId.toString()) {
+          coupons.push({
+            gameCode: game.gameCode,
+            gameId: game._id,
+            winType: type,
+            cardNumber: game[field].cardNumber,
+            wonAt: game[field].wonAt,
+            couponCode: game[field].couponCode,
+            status: game[field].couponCode ? 'ASSIGNED' : 'PENDING'
+          });
+        }
+      });
+    });
+
+    res.json({ coupons });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

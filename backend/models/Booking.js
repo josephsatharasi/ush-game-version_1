@@ -20,7 +20,7 @@ const bookingSchema = new mongoose.Schema({
   deliveredAt: { type: Date }
 });
 
-// Create compound index to prevent duplicate bookings for same user, game, date, and timeSlot
-bookingSchema.index({ userId: 1, gameId: 1, scheduledDate: 1, timeSlot: 1 }, { unique: true });
+// Create index for faster queries (non-unique to allow multiple slots per day)
+bookingSchema.index({ userId: 1, gameId: 1, scheduledDate: 1, timeSlot: 1 });
 
 module.exports = mongoose.model('Booking', bookingSchema);
