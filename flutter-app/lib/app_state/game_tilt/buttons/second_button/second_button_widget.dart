@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../widgets/loction_header.dart';
 import '../../../../widgets/animated_jar_widget.dart';
+import '../../../../config/backend_api_config.dart';
 import 'package:ush_app/app_state/game_state_manager.dart';
 
 class GameTiltSecondButtonWidget extends StatefulWidget {
@@ -13,13 +15,44 @@ class GameTiltSecondButtonWidget extends StatefulWidget {
 class _GameTiltSecondButtonWidgetState extends State<GameTiltSecondButtonWidget> {
   int _currentPage = 0;
   final int _totalPages = 3;
-  final Set<int> _selectedNumbers = {31, 36, 42, 48, 57}; // Second line numbers
+  final Set<int> _selectedNumbers = {};
   final GameStateManager _gameState = GameStateManager();
 
   @override
   void initState() {
     super.initState();
     _gameState.markAsVisited('SECOND LINE');
+    _loadSecondLineNumbers();
+  }
+
+  Future<void> _loadSecondLineNumbers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token != null) {
+        final result = await BackendApiConfig.getMyBookings(token: token);
+        final bookingsList = result['bookings'] as List;
+        
+        if (bookingsList.isNotEmpty) {
+          final booking = bookingsList.first;
+          final generatedNumbers = booking['generatedNumbers'] as List?;
+          
+          if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+            final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+            final secondLine = (firstTicket['secondLine'] as List?)?.cast<int>() ?? [];
+            if (mounted) {
+              setState(() {
+                _selectedNumbers.clear();
+                _selectedNumbers.addAll(secondLine);
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load second line numbers: $e');
+    }
   }
 
   @override

@@ -8,7 +8,6 @@ const CreateGame = () => {
     totalSlots: 100,
     availableTickets: [1, 3, 6],
     maxTicketsPerUser: 6,
-    availableWeekDays: [],
     availableTimeSlots: []
   });
   const [loading, setLoading] = useState(false);
@@ -39,12 +38,7 @@ const CreateGame = () => {
     setFormData({ ...formData, availableTickets: tickets });
   };
 
-  const toggleWeekDay = (day) => {
-    const days = formData.availableWeekDays.includes(day)
-      ? formData.availableWeekDays.filter(d => d !== day)
-      : [...formData.availableWeekDays, day];
-    setFormData({ ...formData, availableWeekDays: days });
-  };
+
 
   const toggleTimeSlot = (slot) => {
     const exists = formData.availableTimeSlots.find(s => s.time === slot.time);
@@ -101,7 +95,6 @@ const CreateGame = () => {
         body: JSON.stringify({
           maxTicketsPerUser: formData.maxTicketsPerUser,
           availableTickets: formData.availableTickets,
-          availableWeekDays: formData.availableWeekDays,
           availableTimeSlots: formData.availableTimeSlots,
           scheduledDate: formData.scheduledDate
         })
@@ -117,7 +110,6 @@ const CreateGame = () => {
           totalSlots: 100,
           availableTickets: [1, 3, 6],
           maxTicketsPerUser: 6,
-          availableWeekDays: [],
           availableTimeSlots: []
         });
       } else {
@@ -227,26 +219,7 @@ const CreateGame = () => {
           </div>
         </div>
 
-        {/* Week Days */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Available Week Days</h2>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            {weekDays.map(day => (
-              <button
-                key={day}
-                type="button"
-                onClick={() => toggleWeekDay(day)}
-                className={`py-3 px-4 rounded-xl font-semibold transition ${
-                  formData.availableWeekDays.includes(day)
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         {/* Time Slots */}
         <div className="bg-white rounded-2xl shadow-xl p-6">

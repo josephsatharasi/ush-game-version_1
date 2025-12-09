@@ -70,7 +70,7 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
 
   void _startJarAnimation() {
     _currentJarFrame = 1;
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
       if (_disposed || !mounted) {
         timer.cancel();
         return;

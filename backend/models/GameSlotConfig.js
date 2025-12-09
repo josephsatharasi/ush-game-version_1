@@ -7,7 +7,7 @@ const gameSlotConfigSchema = new mongoose.Schema({
   availableTickets: [{ type: Number, min: 1, max: 10 }],
   availableWeekDays: [{
     type: String,
-    enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    enum: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   }],
   availableTimeSlots: [{
     time: { type: String, required: true },

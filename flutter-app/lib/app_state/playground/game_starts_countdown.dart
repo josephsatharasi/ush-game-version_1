@@ -28,6 +28,7 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
   void initState() {
     super.initState();
     BackgroundMusicService().play();
+    GameNumberService().initialize();
     _loadGameData();
   }
 
@@ -44,25 +45,32 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
           gameId: gameId,
         );
         
-        // Load user bookings to get generated numbers
+        // Load user bookings
         try {
-          final bookings = await BackendApiConfig.getMyBookings(token: token);
-          final bookingsList = bookings['bookings'] as List;
+          final result = await BackendApiConfig.getMyBookings(token: token);
+          final bookingsList = result['bookings'] as List;
           
           if (bookingsList.isNotEmpty) {
-            final latestBooking = bookingsList.first;
-            final generatedNumbers = latestBooking['generatedNumbers'] as List?;
-            final cardNumbers = latestBooking['cardNumbers'] as List?;
+            final booking = bookingsList.first;
+            final generatedNumbers = booking['generatedNumbers'] as List?;
+            final cardNumbers = (booking['cardNumbers'] as List?)?.cast<String>() ?? [];
             
             if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
-              await prefs.setString('generatedNumbers', generatedNumbers[0]);
+              final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+              final allNumbers = [
+                ...(firstTicket['firstLine'] as List?)?.cast<int>() ?? [],
+                ...(firstTicket['secondLine'] as List?)?.cast<int>() ?? [],
+                ...(firstTicket['thirdLine'] as List?)?.cast<int>() ?? [],
+              ];
+              final numbersString = allNumbers.join(',');
+              await prefs.setString('generatedNumbers', numbersString);
               if (mounted) {
                 setState(() {
-                  _generatedNumbers = generatedNumbers[0];
+                  _generatedNumbers = numbersString;
                 });
               }
             }
-            if (cardNumbers != null && cardNumbers.isNotEmpty) {
+            if (cardNumbers.isNotEmpty) {
               await prefs.setString('cardNumber', cardNumbers[0]);
               if (mounted) {
                 setState(() {

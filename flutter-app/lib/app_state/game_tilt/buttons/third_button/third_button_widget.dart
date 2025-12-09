@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ush_app/widgets/loction_header.dart';
 import 'package:ush_app/widgets/animated_jar_widget.dart';
+import 'package:ush_app/config/backend_api_config.dart';
 import 'package:ush_app/app_state/game_state_manager.dart';
 
 class GameTiltThirdButtonWidget extends StatefulWidget {
@@ -13,13 +15,44 @@ class GameTiltThirdButtonWidget extends StatefulWidget {
 class _GameTiltThirdButtonWidgetState extends State<GameTiltThirdButtonWidget> {
   int _currentPage = 0;
   final int _totalPages = 3;
-  final Set<int> _selectedNumbers = {61, 66, 72, 78, 87}; // Third line numbers
+  final Set<int> _selectedNumbers = {};
   final GameStateManager _gameState = GameStateManager();
 
   @override
   void initState() {
     super.initState();
     _gameState.markAsVisited('THIRD LINE');
+    _loadThirdLineNumbers();
+  }
+
+  Future<void> _loadThirdLineNumbers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token != null) {
+        final result = await BackendApiConfig.getMyBookings(token: token);
+        final bookingsList = result['bookings'] as List;
+        
+        if (bookingsList.isNotEmpty) {
+          final booking = bookingsList.first;
+          final generatedNumbers = booking['generatedNumbers'] as List?;
+          
+          if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+            final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+            final thirdLine = (firstTicket['thirdLine'] as List?)?.cast<int>() ?? [];
+            if (mounted) {
+              setState(() {
+                _selectedNumbers.clear();
+                _selectedNumbers.addAll(thirdLine);
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load third line numbers: $e');
+    }
   }
 
   @override
