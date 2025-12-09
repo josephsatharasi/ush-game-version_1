@@ -65,22 +65,35 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       final token = prefs.getString('token');
       final gameId = prefs.getString('gameId');
       
+      debugPrint('🔑 Token: ${token != null}, GameId: ${gameId != null}');
+      
       if (token != null && gameId != null) {
         final result = await BackendApiConfig.getAnnouncedNumbers(
           token: token,
           gameId: gameId,
         );
         
+        debugPrint('📦 API Response: $result');
+        
         if (mounted) {
           final newNumber = result['currentNumber'] ?? 0;
           final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
           
-          if (newNumber > 0 && newNumber != _currentNumber) {
+          debugPrint('🔢 Current Number: $newNumber, Announced: $announcedList');
+          
+          if (newNumber > 0) {
             setState(() {
               _currentNumber = newNumber;
               _announcedNumbers = announcedList;
             });
-            _showCoinPop();
+            
+            // Wait for jar to complete one cycle before showing coin
+            Future.delayed(const Duration(milliseconds: 1500), () {
+              if (mounted) {
+                debugPrint('🚀 Triggering coin pop for number: $_currentNumber');
+                _showCoinPop();
+              }
+            });
           }
         }
       }
@@ -88,7 +101,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       _startContinuousAnimation();
       _startNumberPolling();
     } catch (e) {
-      debugPrint('Failed to fetch announced number: $e');
+      debugPrint('❌ Failed to fetch announced number: $e');
       _startContinuousAnimation();
     }
   }
@@ -96,7 +109,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void _startContinuousAnimation() {
     if (_animationTimer != null && _animationTimer!.isActive) return;
     
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 250), (timer) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -147,23 +160,22 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _showCoinPop() {
-    if (_currentNumber == 0 || !mounted) return;
+    if (_currentNumber == 0 || !mounted || _showCoin) return;
     
     debugPrint('🎯 Showing coin for number: $_currentNumber');
     
     _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
-    _flutterTts.speak(_currentNumber.toString());
     
     setState(() {
       _showCoin = true;
     });
     
-    debugPrint('🎯 _showCoin set to: $_showCoin');
+    _flutterTts.speak(_currentNumber.toString());
     
     _coinAnimationController.forward(from: 0).then((_) {
       if (!mounted) return;
       
-      Timer(const Duration(milliseconds: 2500), () {
+      Timer(const Duration(milliseconds: 4000), () {
         if (!mounted) return;
         _coinAnimationController.reverse().then((_) {
           if (!mounted) return;
@@ -324,9 +336,13 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                               },
                             ),
                           ),
-                          // Coin Pop Animation
+                          // Coin Pop Animation - positioned above jar
                           if (_showCoin)
-                            Positioned.fill(
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
                               child: AnimatedBuilder(
                                 animation: _coinAnimation,
                                 builder: (context, child) {
@@ -383,8 +399,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
 
   Widget _buildCoin() {
     double progress = _coinAnimation.value;
-    double scale = 0.3 + (progress * 0.7);
-    double opacity = progress < 0.5 ? progress * 2 : 1.0;
+    double scale = 0.7 + (progress * 0.3);
+    double opacity = progress < 0.15 ? progress * 6.67 : 1.0;
     
     return Opacity(
       opacity: opacity,
@@ -397,7 +413,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.amber.withOpacity(0.8),
+                color: Color(0xFFFFD700).withOpacity(0.6),
                 blurRadius: 40,
                 spreadRadius: 15,
               ),
@@ -411,41 +427,19 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                 width: 280,
                 height: 280,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  debugPrint('❌ Coin image failed to load');
-                  return Container(
-                    width: 280,
-                    height: 280,
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.orange, width: 8),
-                    ),
-                  );
-                },
               ),
               Text(
                 _currentNumber.toString(),
                 style: TextStyle(
-                  fontSize: 110,
+                  fontSize: 120,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  letterSpacing: -3,
+                  letterSpacing: -5,
                   shadows: [
                     Shadow(
-                      color: Colors.black,
-                      blurRadius: 25,
-                      offset: const Offset(5, 5),
-                    ),
-                    Shadow(
-                      color: Colors.black.withOpacity(0.8),
-                      blurRadius: 35,
-                      offset: const Offset(0, 0),
-                    ),
-                    Shadow(
-                      color: Colors.deepOrange,
-                      blurRadius: 50,
-                      offset: const Offset(0, 0),
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
