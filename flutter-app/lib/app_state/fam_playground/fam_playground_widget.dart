@@ -24,6 +24,7 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   void initState() {
     super.initState();
     _loadTicketNumbers();
+    _blockedNumbers.addAll(GameNumberService().markedNumbers);
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (mounted) {
         setState(() {});
@@ -240,8 +241,10 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
           setState(() {
             if (_blockedNumbers.contains(number)) {
               _blockedNumbers.remove(number);
+              GameNumberService().unmarkNumber(number);
             } else {
               _blockedNumbers.add(number);
+              GameNumberService().markNumber(number);
             }
           });
         }

@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ush_app/widgets/loction_header.dart';
 import 'package:ush_app/widgets/animated_jar_widget.dart';
 import 'package:ush_app/config/backend_api_config.dart';
+import 'package:ush_app/services/game_number_service.dart';
 import 'package:ush_app/app_state/game_state_manager.dart';
 
 class GameTiltThirdButtonWidget extends StatefulWidget {
@@ -16,12 +17,14 @@ class _GameTiltThirdButtonWidgetState extends State<GameTiltThirdButtonWidget> {
   int _currentPage = 0;
   final int _totalPages = 3;
   final Set<int> _selectedNumbers = {};
+  final Set<int> _markedNumbers = {};
   final GameStateManager _gameState = GameStateManager();
 
   @override
   void initState() {
     super.initState();
     _gameState.markAsVisited('THIRD LINE');
+    _markedNumbers.addAll(GameNumberService().markedNumbers);
     _loadThirdLineNumbers();
   }
 
@@ -173,18 +176,19 @@ class _GameTiltThirdButtonWidgetState extends State<GameTiltThirdButtonWidget> {
   }
   Widget _buildNumberButton(int number) {
     final isSelected = _selectedNumbers.contains(number);
+    final isMarked = _markedNumbers.contains(number);
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? Color(0xFFE91E63) : Colors.white,
+        color: isMarked ? Color(0xFFE91E63) : Colors.white,
         shape: BoxShape.circle,
-        border: Border.all(color: isSelected ? Color(0xFFE91E63) : Colors.white, width: 2),
+        border: Border.all(color: isMarked ? Color(0xFFE91E63) : Colors.white, width: 2),
         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 2, offset: Offset(0, 1))],
       ),
       child: Center(
         child: Text(
           number.toString(),
           style: TextStyle(
-            color: isSelected ? Colors.white : Color(0xFFE91E63),
+            color: isMarked ? Colors.white : Color(0xFFE91E63),
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),

@@ -21,7 +21,6 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
   int _seconds = 5;
   bool _countdownComplete = false;
   final TextEditingController _cardNumberController = TextEditingController();
-  String _generatedNumbers = '';
   String _cardNumber = '';
 
   @override
@@ -52,24 +51,8 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
           
           if (bookingsList.isNotEmpty) {
             final booking = bookingsList.first;
-            final generatedNumbers = booking['generatedNumbers'] as List?;
             final cardNumbers = (booking['cardNumbers'] as List?)?.cast<String>() ?? [];
             
-            if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
-              final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
-              final allNumbers = [
-                ...(firstTicket['firstLine'] as List?)?.cast<int>() ?? [],
-                ...(firstTicket['secondLine'] as List?)?.cast<int>() ?? [],
-                ...(firstTicket['thirdLine'] as List?)?.cast<int>() ?? [],
-              ];
-              final numbersString = allNumbers.join(',');
-              await prefs.setString('generatedNumbers', numbersString);
-              if (mounted) {
-                setState(() {
-                  _generatedNumbers = numbersString;
-                });
-              }
-            }
             if (cardNumbers.isNotEmpty) {
               await prefs.setString('cardNumber', cardNumbers[0]);
               if (mounted) {
@@ -498,66 +481,27 @@ Positioned(
   maxLines: 1,
 
   onChanged: (value) async {
-    // Check if input matches pattern: space-separated numbers
-    final trimmed = value.trim();
-    if (trimmed.isNotEmpty && !trimmed.endsWith(' ')) {
-      // Parse input numbers
-      final inputNumbers = trimmed.split(' ').where((s) => s.isNotEmpty).map((s) => s.trim()).toList();
+    final trimmed = value.trim().toUpperCase();
+    
+    // Validate alphanumeric card number (6 characters)
+    if (trimmed.length == 6) {
+      final prefs = await SharedPreferences.getInstance();
+      final storedCardNumber = prefs.getString('cardNumber');
       
-      // Check if we have exactly 15 numbers
-      if (inputNumbers.length == 15) {
-        final prefs = await SharedPreferences.getInstance();
-        final generatedNumbers = prefs.getString('generatedNumbers');
-        
-        // Validate generated numbers exist
-        if (generatedNumbers == null || generatedNumbers.isEmpty) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('No ticket numbers found. Please book a ticket first.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          _cardNumberController.clear();
-          return;
+      if (storedCardNumber == null || storedCardNumber.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No card number found. Please book a ticket first.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
         }
-        
-        // Get stored numbers
-        final storedNumbers = generatedNumbers.split(',').map((s) => s.trim()).toSet();
-        final inputSet = inputNumbers.toSet();
-        
-        // Validate all input numbers match stored numbers
-        if (inputSet.length != 15) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Duplicate numbers found. Please enter 15 unique numbers.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          _cardNumberController.clear();
-          return;
-        }
-        
-        // Check if all input numbers exist in stored numbers
-        final allMatch = inputSet.every((num) => storedNumbers.contains(num));
-        
-        if (!allMatch) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Numbers do not match your ticket. Please check and try again.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          _cardNumberController.clear();
-          return;
-        }
-        
-        // All validations passed - Set game flag
+        _cardNumberController.clear();
+        return;
+      }
+      
+      if (trimmed == storedCardNumber.toUpperCase()) {
         await prefs.setBool('isInGame', true);
         BackgroundMusicService().stop();
         GameNumberService().startGame();
@@ -567,12 +511,22 @@ Positioned(
             MaterialPageRoute(builder: (context) => const GameTiltWidget()),
           );
         }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid card number. Please check and try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        _cardNumberController.clear();
       }
     }
   },
 
   decoration: InputDecoration(
-    hintText: '4050536866897278',
+    hintText: 'Enter Card Number',
     hintStyle: TextStyle(
       color: Color(0xFF1E3A8A).withOpacity(0.5),
       fontSize: 14,
@@ -594,10 +548,9 @@ Positioned(
  ),
                                         ),
                                       ),
-                                      if (_generatedNumbers.isNotEmpty) ...[
+                                      if (_cardNumber.isNotEmpty) ...[
                                         SizedBox(height: 16),
                                         Container(
-                                          width: 240,
                                           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                           decoration: BoxDecoration(
                                             color: Colors.white.withOpacity(0.9),
@@ -606,7 +559,7 @@ Positioned(
                                           child: Column(
                                             children: [
                                               Text(
-                                                'Your Numbers',
+                                                'Your Card Number',
                                                 style: TextStyle(
                                                   color: Color(0xFF1E3A8A),
                                                   fontSize: 12,
@@ -614,25 +567,14 @@ Positioned(
                                                 ),
                                               ),
                                               SizedBox(height: 6),
-                                              Wrap(
-                                                spacing: 4,
-                                                runSpacing: 4,
-                                                alignment: WrapAlignment.center,
-                                                children: _generatedNumbers.split(',').map((num) => Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                                  decoration: BoxDecoration(
-                                                    color: Color(0xFF1E3A8A),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                  ),
-                                                  child: Text(
-                                                    num.trim(),
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                )).toList(),
+                                              Text(
+                                                _cardNumber,
+                                                style: TextStyle(
+                                                  color: Color(0xFF1E3A8A),
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  letterSpacing: 2,
+                                                ),
                                               ),
                                             ],
                                           ),
