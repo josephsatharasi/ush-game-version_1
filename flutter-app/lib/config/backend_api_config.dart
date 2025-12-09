@@ -189,6 +189,7 @@ class BackendApiConfig {
     required String token,
     required String gameId,
     required String winType,
+    required String cardNumber,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/game/$gameId/claim-win'),
@@ -196,13 +197,50 @@ class BackendApiConfig {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'winType': winType}),
+      body: jsonEncode({'winType': winType, 'cardNumber': cardNumber}),
     );
     
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Win claim failed');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getWinners({
+    required String token,
+    required String gameId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game/$gameId/winners'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get winners');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getMyCoupons({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game/my-coupons'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get coupons');
     }
   }
 

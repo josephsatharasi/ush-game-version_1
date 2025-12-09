@@ -3,9 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:ush_app/widgets/loction_header.dart';
 import 'package:ush_app/app_state/game_state_manager.dart';
 import 'package:ush_app/app_state/game_tilt/scratch_reward_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NextGameScreeniWidget extends StatefulWidget {
-  const NextGameScreeniWidget({super.key});
+  final String? winnerUsername;
+  final String? winnerUserId;
+  
+  const NextGameScreeniWidget({
+    super.key,
+    this.winnerUsername,
+    this.winnerUserId,
+  });
 
   @override
   State<NextGameScreeniWidget> createState() => _NextGameScreeniWidgetState();
@@ -36,37 +44,56 @@ class _NextGameScreeniWidgetState extends State<NextGameScreeniWidget> with Sing
       vsync: this,
       duration: Duration(milliseconds: 100),
     );
+    _checkIfUserWon();
+
+  }
+
+  Future<void> _checkIfUserWon() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
     
-    // Start the sequence after 2 seconds
+    if (userId != null && widget.winnerUserId == userId) {
+      _startWinSequence();
+    } else {
+      _startLoseSequence();
+    }
+  }
+
+  void _startWinSequence() {
     Future.delayed(Duration(seconds: 1), () {
       if (mounted) {
         setState(() => _showGameOver = true);
-        // After 2 seconds, show You Won
         Future.delayed(Duration(seconds: 1), () {
           if (mounted) {
             setState(() {
               _showGameOver = false;
               _showYouWon = true;
             });
-            // After 2 more seconds, show Winner
             Future.delayed(Duration(seconds: 1), () {
               if (mounted) {
-                setState(() {
-                  _showYouWon = false;
-                  _showWinner = true;
-                });
-                // After 2 more seconds, navigate to Scratch Reward Screen
-                Future.delayed(Duration(seconds: 1), () {
-                  if (mounted) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ScratchRewardScreen(),
-                      ),
-                    );
-                  }
-                });
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ScratchRewardScreen(),
+                  ),
+                );
               }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  void _startLoseSequence() {
+    Future.delayed(Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() => _showGameOver = true);
+        Future.delayed(Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {
+              _showGameOver = false;
+              _showWinner = true;
             });
           }
         });
@@ -86,6 +113,9 @@ class _NextGameScreeniWidgetState extends State<NextGameScreeniWidget> with Sing
       backgroundColor: Colors.white,
       body: Stack(
         children: [
+          if (_showGameOver) _buildGameOverScreen(),
+          if (_showYouWon) _buildYouWonScreen(),
+          if (_showWinner) _buildWinnerScreen(),
           // Main content
           Column(
             children: [
@@ -308,6 +338,238 @@ SizedBox(height: 80),
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGameOverScreen() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          width: 280,
+          height: 280,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 25,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Text(
+                    'Game',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'Over',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Image.asset(
+                  'assets/images/numberBox2.png',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                child: Image.asset(
+                  'assets/images/numberBox1.png',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildYouWonScreen() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          width: 280,
+          height: 280,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 25,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Text(
+                    'You',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 50,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Won',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 50,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Image.asset(
+                  'assets/images/winEmoji.png',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                right: 3,
+                child: Image.asset(
+                  'assets/images/coinsBag.png',
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                child: Image.asset(
+                  'assets/images/numberBox1.png',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWinnerScreen() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          width: 280,
+          height: 280,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black54,
+                blurRadius: 25,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 5, top: 30),
+                    child: Text(
+                      'Winner',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Padding(
+                    padding: EdgeInsets.only(left: 20),
+                    child: Text(
+                      widget.winnerUsername ?? 'Unknown',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Image.asset(
+                  'assets/images/winEmoji.png',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                child: Image.asset(
+                  'assets/images/numberBox1.png',
+                  width: 100,
+                  height: 100,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

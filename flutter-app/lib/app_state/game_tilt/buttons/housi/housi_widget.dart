@@ -4,6 +4,10 @@ import 'package:ush_app/widgets/loction_header.dart';
 import 'package:ush_app/widgets/animated_jar_widget.dart';
 import 'package:ush_app/app_state/game_state_manager.dart';
 import 'package:ush_app/app_state/game_tilt/next_winner.dart';
+import 'package:ush_app/services/game_number_service.dart';
+import 'package:ush_app/services/winner_service.dart';
+import 'package:ush_app/models/win_type.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GameTiltHousiWidget extends StatefulWidget {
   const GameTiltHousiWidget({super.key});
@@ -27,6 +31,9 @@ class _GameTiltHousiWidgetState extends State<GameTiltHousiWidget> with SingleTi
   bool _showYouWon = false;
   bool _showWinner = false;
   late AnimationController _animationController;
+  String? _winnerUsername;
+  String? _winnerUserId;
+  bool _isClaimingWin = false;
 
   @override
   void initState() {
@@ -252,7 +259,10 @@ Widget _buildWinnerScreen() {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => NextGameScreeniWidget(), // your next screen widget
+              builder: (context) => NextGameScreeniWidget(
+                winnerUsername: _winnerUsername,
+                winnerUserId: _winnerUserId,
+              ),
             ),
           );
         },
@@ -294,27 +304,15 @@ Widget _buildWinnerScreen() {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(left: 20),
                     child: Text(
-                      'User Name',
+                      _winnerUsername ?? 'Unknown',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 40,
                         fontWeight: FontWeight.w400,
                         height: 1.1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 50),
-                  const Padding(
-                    padding: EdgeInsets.only(left: 150, top: 20),
-                    child: Text(
-                      'USH-246',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w200,
                       ),
                     ),
                   ),
@@ -573,11 +571,49 @@ Widget _buildNumberGridCard() {
     bool isHousi = name == 'HOUSI';
     
     return GestureDetector(
-      onTap: isHousi ? () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => NextGameScreeniWidget()),
-        );
+      onTap: isHousi ? () async {
+        if (_isClaimingWin) return;
+        
+        setState(() => _isClaimingWin = true);
+        GameNumberService().stopGame();
+        
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final gameId = prefs.getString('gameId');
+          final cardNumber = prefs.getString('cardNumber');
+          
+          if (gameId != null && cardNumber != null) {
+            await WinnerService().claimWin(
+              gameId: gameId,
+              winType: WinType.HOUSIE,
+              cardNumber: cardNumber,
+            );
+            
+            final winner = await WinnerService().getHousieWinner(gameId);
+            if (winner != null) {
+              setState(() {
+                _winnerUsername = winner.username ?? 'Unknown';
+                _winnerUserId = winner.userId;
+              });
+            }
+          }
+        } catch (e) {
+          print('Error claiming win: $e');
+        } finally {
+          setState(() => _isClaimingWin = false);
+        }
+        
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NextGameScreeniWidget(
+                winnerUsername: _winnerUsername,
+                winnerUserId: _winnerUserId,
+              ),
+            ),
+          );
+        }
       } : null,
       child: Container(
         height: 50,
