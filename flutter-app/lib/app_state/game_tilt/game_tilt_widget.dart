@@ -32,11 +32,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void initState() {
     super.initState();
     _coinAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     _coinAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _coinAnimationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _coinAnimationController, curve: Curves.easeOut),
     );
     _initTts();
     _fetchAnnouncedNumber();
@@ -96,7 +96,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void _startContinuousAnimation() {
     if (_animationTimer != null && _animationTimer!.isActive) return;
     
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -149,28 +149,28 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void _showCoinPop() {
     if (_currentNumber == 0 || !mounted) return;
     
-    if (mounted) {
-      setState(() {
-        _showCoin = true;
-      });
-    }
+    debugPrint('🎯 Showing coin for number: $_currentNumber');
+    
+    setState(() {
+      _showCoin = true;
+    });
+    
+    debugPrint('🎯 _showCoin set to: $_showCoin');
     
     _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
+    _flutterTts.speak(_currentNumber.toString());
     
     _coinAnimationController.forward(from: 0).then((_) {
       if (!mounted) return;
-      _flutterTts.speak(_currentNumber.toString());
-      _audioPlayer.stop();
       
-      Timer(const Duration(seconds: 3), () {
+      Timer(const Duration(milliseconds: 2500), () {
         if (!mounted) return;
         _coinAnimationController.reverse().then((_) {
           if (!mounted) return;
-          if (mounted) {
-            setState(() {
-              _showCoin = false;
-            });
-          }
+          setState(() {
+            _showCoin = false;
+          });
+          _audioPlayer.stop();
         });
       });
     });
@@ -324,16 +324,18 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                               },
                             ),
                           ),
-                          // Coin Pop Animation (zooms from jar to center)
-                          if (_showCoin)
-                            AnimatedBuilder(
+                          // Coin Pop Animation - ALWAYS render, control with opacity
+                          Positioned.fill(
+                            child: AnimatedBuilder(
                               animation: _coinAnimation,
                               builder: (context, child) {
+                                if (!_showCoin) return const SizedBox.shrink();
                                 return Center(
                                   child: _buildCoin(),
                                 );
                               },
                             ),
+                          ),
                         ],
                       ),
                     ),
@@ -380,43 +382,67 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   Widget _buildCoin() {
-    double progress = _coinAnimation.value.clamp(0.0, 1.0);
-    double scale = 0.1 + (progress * 0.9);
-    double opacity = progress.clamp(0.0, 1.0);
+    double progress = _coinAnimation.value;
+    double scale = 0.4 + (progress * 0.6);
     
-    return Opacity(
-      opacity: opacity,
-      child: Transform.scale(
-        scale: scale,
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        width: 280,
+        height: 280,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withOpacity(0.8),
+              blurRadius: 40,
+              spreadRadius: 15,
+            ),
+          ],
+        ),
         child: Stack(
           alignment: Alignment.center,
           children: [
             Image.asset(
               'assets/images/fam_coin.png',
-              width: 250,
-              height: 250,
+              width: 280,
+              height: 280,
+              fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
+                debugPrint('❌ Coin image failed to load');
                 return Container(
-                  width: 250,
-                  height: 250,
-                  decoration: const BoxDecoration(
+                  width: 280,
+                  height: 280,
+                  decoration: BoxDecoration(
                     color: Colors.amber,
                     shape: BoxShape.circle,
+                    border: Border.all(color: Colors.orange, width: 8),
                   ),
                 );
               },
             ),
             Text(
               _currentNumber.toString(),
-              style: const TextStyle(
-                fontSize: 80,
-                fontWeight: FontWeight.bold,
+              style: TextStyle(
+                fontSize: 110,
+                fontWeight: FontWeight.w900,
                 color: Colors.white,
+                letterSpacing: -3,
                 shadows: [
                   Shadow(
-                    color: Colors.black54,
-                    blurRadius: 10,
-                    offset: Offset(2, 2),
+                    color: Colors.black,
+                    blurRadius: 25,
+                    offset: const Offset(5, 5),
+                  ),
+                  Shadow(
+                    color: Colors.black.withOpacity(0.8),
+                    blurRadius: 35,
+                    offset: const Offset(0, 0),
+                  ),
+                  Shadow(
+                    color: Colors.deepOrange,
+                    blurRadius: 50,
+                    offset: const Offset(0, 0),
                   ),
                 ],
               ),

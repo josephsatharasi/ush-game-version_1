@@ -39,23 +39,19 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (_disposed || !mounted) return;
       _currentNumber = number;
-      if (mounted) {
-        setState(() {
-          _showCoin = true;
-        });
-      }
-      if (_disposed) return;
+      setState(() {
+        _showCoin = true;
+      });
+      
       _coinAnimationController.forward(from: 0).then((_) {
         if (_disposed || !mounted) return;
-        _coinTimer = Timer(const Duration(seconds: 4), () {
+        _coinTimer = Timer(const Duration(milliseconds: 2500), () {
           if (_disposed || !mounted) return;
           _coinAnimationController.reverse().then((_) {
             if (_disposed || !mounted) return;
-            if (mounted) {
-              setState(() {
-                _showCoin = false;
-              });
-            }
+            setState(() {
+              _showCoin = false;
+            });
           });
         });
       });
@@ -74,7 +70,7 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
 
   void _startJarAnimation() {
     _currentJarFrame = 1;
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 700), (timer) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
       if (_disposed || !mounted) {
         timer.cancel();
         return;
@@ -118,48 +114,68 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
             AnimatedBuilder(
               animation: _coinAnimation,
               builder: (context, child) {
-                double progress = _coinAnimation.value.clamp(0.0, 1.0);
-                double scale = 0.1 + (progress * 0.9);
-                double opacity = progress.clamp(0.0, 1.0);
+                double progress = _coinAnimation.value;
+                double scale = 0.3 + (progress * 0.7);
+                double opacity = progress < 0.5 ? progress * 2 : 1.0;
                 
                 return Opacity(
                   opacity: opacity,
                   child: Transform.scale(
                     scale: scale,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/images/fam_coin.png',
-                          width: 250,
-                          height: 250,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 250,
-                              height: 250,
-                              decoration: const BoxDecoration(
-                                color: Colors.amber,
-                                shape: BoxShape.circle,
-                              ),
-                            );
-                          },
-                        ),
-                        Text(
-                          _currentNumber.toString(),
-                          style: const TextStyle(
-                            fontSize: 80,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black54,
-                                blurRadius: 10,
-                                offset: Offset(2, 2),
-                              ),
-                            ],
+                    child: Container(
+                      width: 250,
+                      height: 250,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.amber.withOpacity(0.5),
+                            blurRadius: 20,
+                            spreadRadius: 5,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/images/fam_coin.png',
+                            width: 250,
+                            height: 250,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 250,
+                                height: 250,
+                                decoration: const BoxDecoration(
+                                  color: Colors.amber,
+                                  shape: BoxShape.circle,
+                                ),
+                              );
+                            },
+                          ),
+                          Text(
+                            _currentNumber.toString(),
+                            style: TextStyle(
+                              fontSize: 90,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.8),
+                                  blurRadius: 15,
+                                  offset: const Offset(3, 3),
+                                ),
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.5),
+                                  blurRadius: 25,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
