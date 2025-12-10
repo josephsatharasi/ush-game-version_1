@@ -522,30 +522,24 @@ SizedBox(height: 80),
             alignment: Alignment.center,
             children: [
               Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 5, top: 30),
-                    child: Text(
-                      'Winner',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w400,
-                      ),
+                  const Text(
+                    'Winner',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 30),
-                  Padding(
-                    padding: EdgeInsets.only(left: 20),
-                    child: Text(
-                      widget.winnerUsername ?? 'Unknown',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w400,
-                      ),
+                  const SizedBox(height: 20),
+                  Text(
+                    widget.winnerUsername ?? 'Unknown',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],

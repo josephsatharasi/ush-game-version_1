@@ -6,6 +6,10 @@ import '../../widgets/loction_header.dart';
 import '../playground/game_starts_countdown.dart';
 import '../../services/background_music_service.dart';
 import '../../config/backend_api_config.dart';
+import 'settings/settings_widget.dart';
+import 'history/history_widget.dart';
+import 'coupons/coupons_widget.dart';
+import '../game_selection_screen.dart';
 // import 'adds_flow/card_review_screen.dart';
 
 class HomeWidget extends StatefulWidget {
@@ -98,6 +102,26 @@ class _HomeWidgetState extends State<HomeWidget> {
         // Clear flag on error
         await prefs.setBool('isInGame', false);
       }
+    }
+  }
+
+  Future<void> _handleStartGameNavigation() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cardNumber = prefs.getString('cardNumber');
+    final hasBookedTicket = cardNumber != null && cardNumber.isNotEmpty;
+    
+    if (hasBookedTicket) {
+      // User has booked ticket, go directly to countdown
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => GameStartsCountdown()),
+      );
+    } else {
+      // New user or no ticket, go to game selection
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => GameSelectionScreen()),
+      );
     }
   }
 
@@ -216,13 +240,8 @@ class _HomeWidgetState extends State<HomeWidget> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => GameStartsCountdown(),
-                              ),
-                            );
+                          onTap: () async {
+                            await _handleStartGameNavigation();
                           },
                           child: Text('Start Game', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black)),
                         ),
@@ -261,7 +280,10 @@ class _HomeWidgetState extends State<HomeWidget> {
                                     left: 80,
                                     child: GestureDetector(
                                       onTap: () {
-                                        Navigator.pushNamed(context, '/game-selection');
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => GameSelectionScreen()),
+                                        );
                                       },
                                       child: Container(
                                         height: 100,
@@ -397,21 +419,24 @@ class _HomeWidgetState extends State<HomeWidget> {
                 ),
                 child: Column(
                   children: ['Settings', 'History', 'Cuppons'].map((item) {
-                    String route;
+                    Widget targetWidget;
                     switch (item) {
                       case 'Settings':
-                        route = '/settings';
+                        targetWidget = SettingsWidget();
                         break;
                       case 'History':
-                        route = '/history';
+                        targetWidget = HistoryWidget();
                         break;
                       default:
-                        route = '/coupons';
+                        targetWidget = CouponsWidget();
                     }
                     return InkWell(
                       onTap: () {
                         setState(() => _showMenu = false);
-                        Navigator.pushNamed(context, route);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => targetWidget),
+                        );
                       },
                       child: Container(
                         width: double.infinity,
@@ -435,11 +460,17 @@ class _HomeWidgetState extends State<HomeWidget> {
               onTap: (index) {
                 setState(() => _currentIndex = index);
                 if (index == 1) {
-                  Navigator.pushNamed(context, '/delivery-status');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Delivery status coming soon!')),
+                  );
                 } else if (index == 2) {
-                  Navigator.pushNamed(context, '/playground');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Playground coming soon!')),
+                  );
                 } else if (index == 3) {
-                  Navigator.pushNamed(context, '/leaderboard');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Leaderboard coming soon!')),
+                  );
                 }
               },
             ),

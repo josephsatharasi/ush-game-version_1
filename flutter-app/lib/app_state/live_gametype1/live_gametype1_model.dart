@@ -9,6 +9,9 @@ class LiveGametype1Model {
   List<int> weekNumbers = [];
   List<Map<String, dynamic>> timeSlots = [];
   List<int> availableTickets = [];
+  
+  // Completion tracking
+  Set<String> completedButtons = {};
 
   List<List<String>> ticketData = [
     ['1', '', '32', '40', '', '62', '', '90'],
@@ -57,4 +60,12 @@ class LiveGametype1Model {
   }
 
   bool get canProceed => selectedWeekDay != -1 && selectedTimeSlot != null && weekDays.isNotEmpty && timeSlots.isNotEmpty;
+  
+  void markButtonCompleted(String buttonName) {
+    completedButtons.add(buttonName);
+  }
+  
+  bool isButtonCompleted(String buttonName) {
+    return completedButtons.contains(buttonName);
+  }
 }

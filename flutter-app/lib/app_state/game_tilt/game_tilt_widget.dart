@@ -15,7 +15,7 @@ class GameTiltWidget extends StatefulWidget {
 }
 
 class _GameTiltWidgetState extends State<GameTiltWidget>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final GameTiltModel _model = GameTiltModel();
   int _currentJarFrame = 1;
   Timer? _animationTimer;
@@ -27,10 +27,12 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   final FlutterTts _flutterTts = FlutterTts();
   int _currentNumber = 0;
   List<int> _announcedNumbers = [];
+  bool _isAppInBackground = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _coinAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -39,7 +41,9 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       CurvedAnimation(parent: _coinAnimationController, curve: Curves.easeInOut),
     );
     _initTts();
-    _fetchAnnouncedNumber();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchAnnouncedNumber();
+    });
   }
 
   Future<void> _initTts() async {
@@ -51,12 +55,54 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
 
   @override
   void dispose() {
-    _animationTimer?.cancel();
-    _numberFetchTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _pauseAllActivities();
     _coinAnimationController.dispose();
     _audioPlayer.dispose();
     _flutterTts.stop();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        _isAppInBackground = true;
+        _pauseAllActivities();
+        break;
+      case AppLifecycleState.resumed:
+        if (_isAppInBackground) {
+          _isAppInBackground = false;
+          _resumeAllActivities();
+        }
+        break;
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  void _pauseAllActivities() {
+    _animationTimer?.cancel();
+    _numberFetchTimer?.cancel();
+    _audioPlayer.stop();
+    _flutterTts.stop();
+    if (_coinAnimationController.isAnimating) {
+      _coinAnimationController.stop();
+    }
+    if (mounted) {
+      setState(() {
+        _showCoin = false;
+      });
+    }
+  }
+
+  void _resumeAllActivities() {
+    if (mounted && !_isAppInBackground) {
+      _startContinuousAnimation();
+      _startNumberPolling();
+    }
   }
 
   Future<void> _fetchAnnouncedNumber() async {
@@ -108,10 +154,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
 
   void _startContinuousAnimation() {
     if (_animationTimer != null && _animationTimer!.isActive) return;
+    if (_isAppInBackground) return;
     
     debugPrint('🏺 Jar tilt started');
     _animationTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
-      if (!mounted) {
+      if (!mounted || _isAppInBackground) {
         timer.cancel();
         return;
       }
@@ -123,9 +170,10 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
 
   void _startNumberPolling() {
     if (_numberFetchTimer != null && _numberFetchTimer!.isActive) return;
+    if (_isAppInBackground) return;
     
     _numberFetchTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      if (!mounted) {
+      if (!mounted || _isAppInBackground) {
         timer.cancel();
         return;
       }
@@ -141,7 +189,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             gameId: gameId,
           );
           
-          if (!mounted) return;
+          if (!mounted || _isAppInBackground) return;
           
           final newNumber = result['currentNumber'] ?? 0;
           final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
@@ -162,8 +210,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _showCoinPop() {
-    if (_currentNumber == 0) {
-      debugPrint('❌ Coin error: Unable to show - number is 0');
+    if (_currentNumber == 0 || _isAppInBackground) {
+      debugPrint('❌ Coin error: Unable to show - number is 0 or app in background');
       return;
     }
     if (!mounted) {
@@ -178,34 +226,42 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     debugPrint('🪙 Coin showing for number: $_currentNumber');
     
     try {
-      _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
-      _flutterTts.speak(_currentNumber.toString());
-      
-      setState(() {
-        _showCoin = true;
+      _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
+        debugPrint('Audio play error: $e');
+      });
+      _flutterTts.speak(_currentNumber.toString()).catchError((e) {
+        debugPrint('TTS error: $e');
       });
       
-      _coinAnimationController.reset();
-      _coinAnimationController.forward().then((_) {
-        if (!mounted) return;
+      if (mounted && !_isAppInBackground) {
+        setState(() {
+          _showCoin = true;
+        });
         
-        Timer(const Duration(milliseconds: 4000), () {
-          if (!mounted) return;
-          _coinAnimationController.reverse().then((_) {
-            if (!mounted) return;
-            setState(() {
-              _showCoin = false;
+        _coinAnimationController.reset();
+        _coinAnimationController.forward().then((_) {
+          if (!mounted || _isAppInBackground) return;
+          
+          Timer(const Duration(milliseconds: 4000), () {
+            if (!mounted || _isAppInBackground) return;
+            _coinAnimationController.reverse().then((_) {
+              if (!mounted || _isAppInBackground) return;
+              setState(() {
+                _showCoin = false;
+              });
+              _audioPlayer.stop();
+              debugPrint('🪙 Coin animation completed');
             });
-            _audioPlayer.stop();
-            debugPrint('🪙 Coin animation completed');
           });
         });
-      });
+      }
     } catch (e) {
       debugPrint('❌ Coin error: Unable to show - $e');
-      setState(() {
-        _showCoin = false;
-      });
+      if (mounted) {
+        setState(() {
+          _showCoin = false;
+        });
+      }
     }
   }
 
@@ -266,19 +322,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.orange, width: 2),
                               ),
-                              child: const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('OFFERS FOR', 
-                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                                  Text('STUDENT', 
-                                      style: TextStyle(
-                                          fontSize: 20, 
-                                          fontWeight: FontWeight.bold, 
-                                          color: Color(0xFFF59E0B))),
-                                  Text('ONLY 50 RS', 
-                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
-                                ],
+                              child: Image.asset(
+                                'assets/images/student_offer.png', 
+                                width: 180,
+                                height: 100,
+                                fit: BoxFit.contain,
                               ),
                             );
                           },

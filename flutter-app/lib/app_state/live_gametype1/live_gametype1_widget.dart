@@ -250,10 +250,11 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                           style:
                               TextStyle(fontSize: 11, color: Colors.grey[600]),
                         ),
-                        SizedBox(height: 24),
+                        SizedBox(height: 16),
                         _buildTicketSelection(),
-                        SizedBox(height: 24),
+                        SizedBox(height: 16),
                         _buildTimeSlotsSection(),
+                        SizedBox(height: 24),
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -553,32 +554,41 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
           ],
         ),
         SizedBox(height: 16),
-        ...List.generate((ticketOptions.length / 2).ceil(), (rowIndex) {
-          final startIndex = rowIndex * 2;
-          final endIndex = (startIndex + 2).clamp(0, ticketOptions.length);
-          return Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildTicketButton(
-                    ticketOptions[startIndex],
-                    hasIcon: ticketOptions[startIndex] == 'Custom Tickets',
-                  ),
-                ),
-                if (endIndex > startIndex + 1) ...<Widget>[
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTicketButton(
-                      ticketOptions[startIndex + 1],
-                      hasIcon: ticketOptions[startIndex + 1] == 'Custom Tickets',
-                    ),
-                  ),
-                ],
-              ],
+        Row(
+          children: [
+            Expanded(
+              child: _buildTicketButton(
+                '1 Ticket',
+                hasIcon: false,
+              ),
             ),
-          );
-        }),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildTicketButton(
+                '3 Ticket',
+                hasIcon: false,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildTicketButton(
+                '6 Ticket',
+                hasIcon: false,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildTicketButton(
+                'Custom Tickets',
+                hasIcon: true,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -595,10 +605,10 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         }
       },
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: 14),
+        height: 48,
         decoration: BoxDecoration(
           color: isSelected ? Color(0xFF1E3A8A) : Colors.white,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isSelected ? Color(0xFF1E3A8A) : Colors.grey[400]!,
             width: 2,
@@ -609,21 +619,18 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ? Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Flexible(
-                      child: Text(
-                        type,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      type,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
                     ),
                     SizedBox(width: 6),
                     Container(
-                      width: 20,
-                      height: 20,
+                      width: 18,
+                      height: 18,
                       decoration: BoxDecoration(
                         color: isSelected ? Colors.white : Color(0xFF1E3A8A),
                         shape: BoxShape.circle,
@@ -631,7 +638,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                       child: Icon(
                         Icons.add,
                         color: isSelected ? Color(0xFF1E3A8A) : Colors.white,
-                        size: 14,
+                        size: 12,
                       ),
                     ),
                   ],
@@ -641,7 +648,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.black,
                     fontWeight: FontWeight.w600,
-                    fontSize: 15,
+                    fontSize: 14,
                   ),
                 ),
         ),
@@ -812,9 +819,9 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
       physics: NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 2.2,
+        childAspectRatio: 2.5,
         crossAxisSpacing: 12,
-        mainAxisSpacing: 24,
+        mainAxisSpacing: 16,
       ),
       itemCount: _model.timeSlots.length,
       itemBuilder: (context, index) {
@@ -842,8 +849,8 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         });
       },
       child: Container(
-        constraints: BoxConstraints(minHeight: 78),
-        padding: EdgeInsets.fromLTRB(14, 14, 14, 24),
+        height: 64,
+        padding: EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isSelected ? Color(0xFF1E3A8A) : Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -857,23 +864,22 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   '$slots Slots left',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : Color.fromARGB(255, 3, 2, 2),
+                    color: isSelected ? Colors.white70 : Colors.grey[600],
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 2),
                 Text(
                   time,
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.white : Colors.black,
                   ),
                 ),
@@ -881,21 +887,21 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
             ),
             if (badge != null && !isSelected)
               Positioned(
-                right: 0,
-                bottom: -45,
+                right: -8,
+                bottom: -20,
                 child: badge == 'Best time'
                     ? _buildGreenCapsule()
                     : Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: badgeColor,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           badge,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 9,
+                            fontSize: 8,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

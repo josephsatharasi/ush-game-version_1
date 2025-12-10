@@ -56,6 +56,19 @@ class WinnerService {
     }
   }
 
+  Future<List<Winner>> getUserCoupons() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+
+    final response = await BackendApiConfig.getMyCoupons(token: token);
+    final List<dynamic> couponsJson = response['coupons'] ?? [];
+    return couponsJson.map((json) => Winner.fromJson(json)).toList();
+  }
+
   Future<void> checkGameEndAndShowResult(BuildContext context, String gameId) async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');

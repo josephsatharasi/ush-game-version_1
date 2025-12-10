@@ -5,6 +5,9 @@ class Winner {
   final DateTime? wonAt;
   final String? couponCode;
   final String winType;
+  final String? gameCode;
+  final String? gameId;
+  final String? status;
 
   Winner({
     this.userId,
@@ -13,6 +16,9 @@ class Winner {
     this.wonAt,
     this.couponCode,
     required this.winType,
+    this.gameCode,
+    this.gameId,
+    this.status,
   });
 
   factory Winner.fromJson(Map<String, dynamic> json) {
@@ -23,6 +29,9 @@ class Winner {
       wonAt: json['wonAt'] != null ? DateTime.parse(json['wonAt']) : null,
       couponCode: json['couponCode'],
       winType: json['winType'] ?? '',
+      gameCode: json['gameCode'],
+      gameId: json['gameId'],
+      status: json['status'],
     );
   }
 }

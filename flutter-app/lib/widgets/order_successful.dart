@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_state/home/home_widget.dart';
 
 class OrderSuccessful extends StatefulWidget {
   const OrderSuccessful({super.key});
@@ -9,16 +10,6 @@ class OrderSuccessful extends StatefulWidget {
 
 class _OrderSuccessfulState extends State<OrderSuccessful> {
   @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/delivery-status');
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
@@ -28,80 +19,120 @@ class _OrderSuccessfulState extends State<OrderSuccessful> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Top-left card (partially off-screen)
+            // Top-left coin 23
             Positioned(
-              top: 0,
-              left: -28,
-              child: Transform.rotate(
-                angle: 0.30,
-                child: _decorativeImage(
-                  'assets/images/image copy 3.png',
-                  width: size.width * 0.34,
-                ),
-              ),
-            ),
-            // Top-right coin (partially inside)
-            Positioned(
-              top: 56,
-              right: 16,
+              top: -40,
+              left: 10,
               child: _decorativeImage(
-                'assets/images/fam_coin.png',
-                width: 84,
+                'assets/images/coin 23.png.png',
+                width: 100,
               ),
             ),
-            // Bottom-left cards cluster (partially off-screen)
+            // Top-right coin 13
             Positioned(
-              left: -24,
-              bottom: 64,
-              child: Transform.rotate(
-                angle: -0.22,
-                child: _decorativeImage(
-                  'assets/images/image copy 2.png',
-                  width: size.width * 0.58,
-                ),
-              ),
-            ),
-            // Bottom-right hourglass
-            Positioned(
-              right: 8,
-              bottom: 68,
+              top: 30,
+              right: -30,
               child: _decorativeImage(
-                'assets/images/time.png',
-                width: 192,
+                'assets/images/coin13.png',
+                width: 100,
               ),
             ),
 
             // Center content
-            Align(
-              alignment: const Alignment(0, -0.05),
+            Padding(
+              padding: const EdgeInsets.only(top: 30),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // Large tick image (no background decoration)
-                  _decorativeImage(
-                    'assets/images/tick.png',
-                    width: 360,
+                  // Green tick circle
+                  Center(
+                    child: _decorativeImage(
+                      'assets/images/tick.png',
+                      width: 320,
+                      height: 180,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  
+                  // YOUR ORDER PLACED text
+                  const Text(
+                    'YOUR ORDER\nPLACED',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF1E3A8A),
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  
+                  // You're all set!
                   const Text(
                     "You're all set!",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF0F172A),
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
+                  
+                  // READY TO PLAY!!
                   const Text(
                     'READY TO PLAY!!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFF16A34A),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
+                      
+                    ),
+                  ),
+
+                  
+                  // Nescafe image
+                    const SizedBox(height: 20),
+                  _decorativeImage(
+                    'assets/images/coffee.png',
+                    width: size.width * 0.7,
+                  ),
+                  const SizedBox(height: 40),
+                  
+                  // Go back to Home button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => HomeWidget(),
+                              settings: RouteSettings(arguments: {'showTicket': true}),
+                            ),
+                            (route) => false,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF1E3A8A),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          elevation: 4,
+                        ),
+                        child: const Text(
+                          'Go back to Home',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ],

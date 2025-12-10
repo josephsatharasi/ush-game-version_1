@@ -468,26 +468,11 @@ Widget _buildNumberGridCard() {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.orange, width: 2),
                   ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'OFFERS FOR',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'STUDENT',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFF59E0B),
-                        ),
-                      ),
-                      Text(
-                        'ONLY 50 RS',
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                  child: Image.asset(
+                    'assets/images/student_offer.png', 
+                    width: 180,
+                    height: 100,
+                    fit: BoxFit.contain,
                   ),
                 );
               },
