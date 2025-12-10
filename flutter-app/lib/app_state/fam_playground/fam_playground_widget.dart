@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'fam_playground_model.dart';
 import '../../widgets/loction_header.dart';
 import '../../services/game_number_service.dart';
+import '../../config/backend_api_config.dart';
 
 class FamPlaygroundWidget extends StatefulWidget {
   const FamPlaygroundWidget({super.key});
@@ -21,11 +23,48 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   @override
   void initState() {
     super.initState();
+    _loadTicketNumbers();
+    _blockedNumbers.addAll(GameNumberService().markedNumbers);
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (mounted) {
         setState(() {});
       }
     });
+  }
+
+  Future<void> _loadTicketNumbers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token != null) {
+        final result = await BackendApiConfig.getMyBookings(token: token);
+        final bookingsList = result['bookings'] as List;
+        
+        if (bookingsList.isNotEmpty) {
+          final booking = bookingsList.first;
+          final generatedNumbers = booking['generatedNumbers'] as List?;
+          
+          if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+            final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+            final firstLine = (firstTicket['firstLine'] as List?)?.cast<int>() ?? [];
+            final secondLine = (firstTicket['secondLine'] as List?)?.cast<int>() ?? [];
+            final thirdLine = (firstTicket['thirdLine'] as List?)?.cast<int>() ?? [];
+            
+            if (mounted) {
+              setState(() {
+                _model.selectedNumbers.clear();
+                _model.selectedNumbers.addAll(firstLine);
+                _model.selectedNumbers.addAll(secondLine);
+                _model.selectedNumbers.addAll(thirdLine);
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load ticket numbers: $e');
+    }
   }
 
   @override
@@ -39,43 +78,8 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
     super.didChangeDependencies();
     if (!_initialized) {
       _gameType = ModalRoute.of(context)?.settings.arguments as String?;
-      if (_gameType != null) {
-        _autoSelectNumbers(_gameType!);
-      }
       _initialized = true;
     }
-  }
-
-  void _autoSelectNumbers(String gameType) {
-    // Auto-select numbers based on game type (simulating a Tambola ticket)
-    setState(() {
-      switch (gameType) {
-        case 'FIRST LINE':
-          // First line - 5 numbers from 1-30 range (first row of ticket)
-          _model.selectedNumbers.addAll([3, 7, 12, 18, 27]);
-          break;
-        case 'SECOND LINE':
-          // Second line - 5 numbers from 31-60 range (second row of ticket)
-          _model.selectedNumbers.addAll([31, 36, 42, 48, 57]);
-          break;
-        case 'THIRD LINE':
-          // Third line - 5 numbers from 61-90 range (third row of ticket)
-          _model.selectedNumbers.addAll([61, 66, 72, 78, 87]);
-          break;
-        case 'JALDHI':
-          // Jaldhi (Quick 5) - any 5 numbers from the ticket
-          _model.selectedNumbers.addAll([3, 7, 12, 18, 27]);
-          break;
-        case 'HOUSI':
-          // Housi (Full House) - all 15 numbers on the ticket
-          _model.selectedNumbers.addAll([
-            3, 7, 12, 18, 27,  // First line
-            31, 36, 42, 48, 57, // Second line
-            61, 66, 72, 78, 87  // Third line
-          ]);
-          break;
-      }
-    });
   }
 
   @override
@@ -228,25 +232,29 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
 
   Widget _buildNumberButton(int number) {
     final isAnnounced = GameNumberService().announcedNumbers.contains(number);
-    final isBlocked = _blockedNumbers.contains(number);
+    final isClicked = _blockedNumbers.contains(number);
     final isTicketNumber = _model.isNumberSelected(number);
     
     return GestureDetector(
-      onTap: isAnnounced && isTicketNumber ? () {
-        setState(() {
-          if (_blockedNumbers.contains(number)) {
-            _blockedNumbers.remove(number);
-          } else {
-            _blockedNumbers.add(number);
-          }
-        });
+      onTap: isTicketNumber ? () {
+        if (isAnnounced) {
+          setState(() {
+            if (_blockedNumbers.contains(number)) {
+              _blockedNumbers.remove(number);
+              GameNumberService().unmarkNumber(number);
+            } else {
+              _blockedNumbers.add(number);
+              GameNumberService().markNumber(number);
+            }
+          });
+        }
       } : null,
       child: Container(
         decoration: BoxDecoration(
-          color: isBlocked ? Colors.green : (isAnnounced && isTicketNumber ? Color(0xFFE91E63) : Colors.white),
+          color: isClicked ? Color(0xFFE91E63) : Colors.white,
           shape: BoxShape.circle,
           border: Border.all(
-            color: isBlocked ? Colors.green : (isAnnounced && isTicketNumber ? Color(0xFFE91E63) : Colors.white),
+            color: isClicked ? Color(0xFFE91E63) : Colors.white,
             width: 2,
           ),
           boxShadow: [
@@ -261,7 +269,7 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
           child: Text(
             number.toString(),
             style: TextStyle(
-              color: (isBlocked || (isAnnounced && isTicketNumber)) ? Colors.white : Color(0xFFE91E63),
+              color: isClicked ? Colors.white : Color(0xFFE91E63),
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),

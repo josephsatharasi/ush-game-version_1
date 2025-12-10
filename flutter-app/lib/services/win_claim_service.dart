@@ -6,7 +6,7 @@ class WinClaimService {
   factory WinClaimService() => _instance;
   WinClaimService._internal();
 
-  Future<Map<String, dynamic>> claimWin(String winType) async {
+  Future<Map<String, dynamic>> claimWin(String winType, String cardNumber) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     final gameId = prefs.getString('gameId');
@@ -19,6 +19,7 @@ class WinClaimService {
       token: token,
       gameId: gameId,
       winType: winType,
+      cardNumber: cardNumber,
     );
   }
 

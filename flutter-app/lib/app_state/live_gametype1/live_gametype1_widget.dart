@@ -106,7 +106,13 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
           await prefs.setString('gameCode', booking['gameCode']);
           await prefs.setString('bookingStatus', booking['status']);
           if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
-            await prefs.setString('generatedNumbers', generatedNumbers[0]);
+            final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+            final allNumbers = [
+              ...(firstTicket['firstLine'] as List?)?.cast<int>() ?? [],
+              ...(firstTicket['secondLine'] as List?)?.cast<int>() ?? [],
+              ...(firstTicket['thirdLine'] as List?)?.cast<int>() ?? [],
+            ];
+            await prefs.setString('generatedNumbers', allNumbers.join(','));
           }
           
           if (mounted) {

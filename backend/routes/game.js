@@ -55,7 +55,7 @@ router.get('/:gameId/slot-config', async (req, res) => {
 // Book ticket
 router.post('/book', auth, async (req, res) => {
   try {
-    const { gameId, ticketCount, scheduledDate, weekDay, timeSlot } = req.body;
+    const { gameId, ticketCount, scheduledDate, timeSlot } = req.body;
     const userId = req.userId;
 
     // Validate input
@@ -63,13 +63,13 @@ router.post('/book', auth, async (req, res) => {
       return res.status(400).json({ message: 'Ticket count must be at least 1' });
     }
 
-    // Validate weekDay and timeSlot
-    const validWeekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Auto-calculate weekDay from scheduledDate
+    const date = new Date(scheduledDate);
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weekDay = weekDays[date.getDay()];
+
+    // Validate timeSlot
     const validTimeSlots = ['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'];
-    
-    if (!validWeekDays.includes(weekDay)) {
-      return res.status(400).json({ message: 'Invalid week day' });
-    }
     
     if (!validTimeSlots.includes(timeSlot)) {
       return res.status(400).json({ message: 'Invalid time slot' });

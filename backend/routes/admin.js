@@ -126,18 +126,23 @@ router.get('/games/admin-all', requireRole(['admin']), async (req, res) => {
 router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { maxTicketsPerUser, availableTickets, availableWeekDays, availableTimeSlots, scheduledDate } = req.body;
+    const { maxTicketsPerUser, availableTickets, availableTimeSlots, scheduledDate } = req.body;
 
     const game = await LiveGame.findById(gameId);
     if (!game) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
+    // Auto-calculate weekDay from scheduledDate
+    const date = new Date(scheduledDate);
+    const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weekDay = weekDays[date.getDay()];
+
     const existingConfig = await GameSlotConfig.findOne({ gameId });
     if (existingConfig) {
       existingConfig.maxTicketsPerUser = maxTicketsPerUser;
       existingConfig.availableTickets = availableTickets || [1, 3, 6];
-      existingConfig.availableWeekDays = availableWeekDays;
+      existingConfig.availableWeekDays = [weekDay];
       existingConfig.availableTimeSlots = availableTimeSlots;
       existingConfig.scheduledDate = new Date(scheduledDate);
       await existingConfig.save();
@@ -149,7 +154,7 @@ router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req
       gameCode: game.gameCode,
       maxTicketsPerUser,
       availableTickets: availableTickets || [1, 3, 6],
-      availableWeekDays,
+      availableWeekDays: [weekDay],
       availableTimeSlots,
       scheduledDate: new Date(scheduledDate)
     });

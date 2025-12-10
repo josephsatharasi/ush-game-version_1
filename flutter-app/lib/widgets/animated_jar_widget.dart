@@ -38,19 +38,28 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
   void _listenToNumbers() {
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (_disposed || !mounted) return;
-      _currentNumber = number;
+      
       setState(() {
-        _showCoin = true;
+        _currentNumber = number;
       });
       
-      _coinAnimationController.forward(from: 0).then((_) {
+      // Wait for jar to complete one cycle before showing coin
+      Future.delayed(const Duration(milliseconds: 1500), () {
         if (_disposed || !mounted) return;
-        _coinTimer = Timer(const Duration(milliseconds: 2500), () {
+        
+        setState(() {
+          _showCoin = true;
+        });
+        
+        _coinAnimationController.forward(from: 0).then((_) {
           if (_disposed || !mounted) return;
-          _coinAnimationController.reverse().then((_) {
+          _coinTimer = Timer(const Duration(milliseconds: 3000), () {
             if (_disposed || !mounted) return;
-            setState(() {
-              _showCoin = false;
+            _coinAnimationController.reverse().then((_) {
+              if (_disposed || !mounted) return;
+              setState(() {
+                _showCoin = false;
+              });
             });
           });
         });
@@ -70,7 +79,7 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
 
   void _startJarAnimation() {
     _currentJarFrame = 1;
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       if (_disposed || !mounted) {
         timer.cancel();
         return;
@@ -111,75 +120,69 @@ class _AnimatedJarWidgetState extends State<AnimatedJarWidget>
             ),
           ),
           if (_showCoin)
-            AnimatedBuilder(
-              animation: _coinAnimation,
-              builder: (context, child) {
-                double progress = _coinAnimation.value;
-                double scale = 0.3 + (progress * 0.7);
-                double opacity = progress < 0.5 ? progress * 2 : 1.0;
-                
-                return Opacity(
-                  opacity: opacity,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 250,
-                      height: 250,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.amber.withOpacity(0.5),
-                            blurRadius: 20,
-                            spreadRadius: 5,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedBuilder(
+                animation: _coinAnimation,
+                builder: (context, child) {
+                  double progress = _coinAnimation.value;
+                  double scale = 0.7 + (progress * 0.3);
+                  double opacity = progress < 0.15 ? progress * 6.67 : 1.0;
+                  
+                  return Center(
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Transform.scale(
+                        scale: scale,
+                        child: Container(
+                          width: 280,
+                          height: 280,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0xFFFFD700).withOpacity(0.6),
+                                blurRadius: 40,
+                                spreadRadius: 15,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/images/fam_coin.png',
-                            width: 250,
-                            height: 250,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 250,
-                                height: 250,
-                                decoration: const BoxDecoration(
-                                  color: Colors.amber,
-                                  shape: BoxShape.circle,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Image.asset(
+                                'assets/images/fam_coin.png',
+                                width: 280,
+                                height: 280,
+                                fit: BoxFit.contain,
+                              ),
+                              Text(
+                                _currentNumber.toString(),
+                                style: TextStyle(
+                                  fontSize: 120,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: -5,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            },
+                              ),
+                            ],
                           ),
-                          Text(
-                            _currentNumber.toString(),
-                            style: TextStyle(
-                              fontSize: 90,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.8),
-                                  blurRadius: 15,
-                                  offset: const Offset(3, 3),
-                                ),
-                                Shadow(
-                                  color: Colors.black.withOpacity(0.5),
-                                  blurRadius: 25,
-                                  offset: const Offset(0, 0),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
         ],
       ),

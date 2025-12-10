@@ -7,7 +7,7 @@ const bookingSchema = new mongoose.Schema({
   gameType: { type: String, default: 'LIVE' },
   ticketCount: { type: Number, required: true, min: 1 },
   scheduledDate: { type: Date, required: true },
-  weekDay: { type: String, required: true, enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
+  weekDay: { type: String, required: true, enum: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
   timeSlot: { type: String, required: true, enum: ['10:00 AM', '11:00 AM', '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM', '5:00 PM', '6:00 PM'] },
   cardNumbers: [{ type: String, required: true }],
   ticketNumbers: [{ type: String, required: true }],

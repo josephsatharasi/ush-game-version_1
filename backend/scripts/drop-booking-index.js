@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 async function dropIndex() {
   try {
@@ -21,8 +22,13 @@ async function dropIndex() {
     await mongoose.connection.close();
     console.log('\n✅ Done! Restart your backend server.');
   } catch (error) {
-    console.error('Error:', error.message);
-    process.exit(1);
+    if (error.message.includes('ns not found')) {
+      console.log('✅ Index already dropped or does not exist');
+    } else {
+      console.error('Error:', error.message);
+    }
+    await mongoose.connection.close();
+    process.exit(error.message.includes('ns not found') ? 0 : 1);
   }
 }
 

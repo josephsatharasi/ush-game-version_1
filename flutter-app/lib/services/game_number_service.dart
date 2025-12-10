@@ -9,14 +9,30 @@ class GameNumberService {
   GameNumberService._internal();
 
   final List<int> _announcedNumbers = [];
+  final Set<int> _markedNumbers = {};
   final StreamController<int> _numberStreamController = StreamController<int>.broadcast();
+  final StreamController<Set<int>> _markedNumbersController = StreamController<Set<int>>.broadcast();
   Timer? _animationTimer;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts();
   bool _isRunning = false;
 
   Stream<int> get numberStream => _numberStreamController.stream;
+  Stream<Set<int>> get markedNumbersStream => _markedNumbersController.stream;
   List<int> get announcedNumbers => List.unmodifiable(_announcedNumbers);
+  Set<int> get markedNumbers => Set.unmodifiable(_markedNumbers);
+
+  void markNumber(int number) {
+    _markedNumbers.add(number);
+    _markedNumbersController.add(Set.from(_markedNumbers));
+  }
+
+  void unmarkNumber(int number) {
+    _markedNumbers.remove(number);
+    _markedNumbersController.add(Set.from(_markedNumbers));
+  }
+
+  bool isMarked(int number) => _markedNumbers.contains(number);
 
   Future<void> initialize() async {
     await _flutterTts.setLanguage('en-US');
@@ -63,11 +79,14 @@ class GameNumberService {
   void resetGame() {
     stopGame();
     _announcedNumbers.clear();
+    _markedNumbers.clear();
+    _markedNumbersController.add(Set.from(_markedNumbers));
   }
 
   void dispose() {
     _animationTimer?.cancel();
     _audioPlayer.dispose();
     _numberStreamController.close();
+    _markedNumbersController.close();
   }
 }

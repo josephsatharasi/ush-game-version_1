@@ -32,11 +32,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void initState() {
     super.initState();
     _coinAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _coinAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _coinAnimationController, curve: Curves.easeOut),
+      CurvedAnimation(parent: _coinAnimationController, curve: Curves.easeInOut),
     );
     _initTts();
     _fetchAnnouncedNumber();
@@ -65,22 +65,35 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       final token = prefs.getString('token');
       final gameId = prefs.getString('gameId');
       
+      debugPrint('🔑 Token: ${token != null}, GameId: ${gameId != null}');
+      
       if (token != null && gameId != null) {
         final result = await BackendApiConfig.getAnnouncedNumbers(
           token: token,
           gameId: gameId,
         );
         
+        debugPrint('📦 API Response: $result');
+        
         if (mounted) {
           final newNumber = result['currentNumber'] ?? 0;
           final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
           
-          if (newNumber > 0 && newNumber != _currentNumber) {
+          debugPrint('✅ Number fetched: $newNumber, Announced: $announcedList');
+          
+          if (newNumber > 0) {
             setState(() {
               _currentNumber = newNumber;
               _announcedNumbers = announcedList;
             });
-            _showCoinPop();
+            
+            debugPrint('⏳ Waiting for jar tilt to end before showing coin...');
+            Future.delayed(const Duration(milliseconds: 2400), () {
+              if (mounted) {
+                debugPrint('✅ Jar tilt ended, triggering coin animation');
+                _showCoinPop();
+              }
+            });
           }
         }
       }
@@ -88,7 +101,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       _startContinuousAnimation();
       _startNumberPolling();
     } catch (e) {
-      debugPrint('Failed to fetch announced number: $e');
+      debugPrint('❌ Fetching error: Failed to fetch announced number: $e');
       _startContinuousAnimation();
     }
   }
@@ -96,7 +109,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void _startContinuousAnimation() {
     if (_animationTimer != null && _animationTimer!.isActive) return;
     
-    _animationTimer = Timer.periodic(const Duration(milliseconds: 150), (timer) {
+    debugPrint('🏺 Jar tilt started');
+    _animationTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
@@ -133,6 +147,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
           
           if (newNumber > 0 && newNumber != _currentNumber) {
+            debugPrint('✅ Number fetched (polling): $newNumber');
             setState(() {
               _currentNumber = newNumber;
               _announcedNumbers = announcedList;
@@ -141,39 +156,57 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           }
         }
       } catch (e) {
-        debugPrint('Failed to poll number: $e');
+        debugPrint('❌ Fetching error (polling): $e');
       }
     });
   }
 
   void _showCoinPop() {
-    if (_currentNumber == 0 || !mounted) return;
+    if (_currentNumber == 0) {
+      debugPrint('❌ Coin error: Unable to show - number is 0');
+      return;
+    }
+    if (!mounted) {
+      debugPrint('❌ Coin error: Unable to show - widget not mounted');
+      return;
+    }
+    if (_showCoin) {
+      debugPrint('❌ Coin error: Unable to show - coin already showing');
+      return;
+    }
     
-    debugPrint('🎯 Showing coin for number: $_currentNumber');
+    debugPrint('🪙 Coin showing for number: $_currentNumber');
     
-    setState(() {
-      _showCoin = true;
-    });
-    
-    debugPrint('🎯 _showCoin set to: $_showCoin');
-    
-    _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
-    _flutterTts.speak(_currentNumber.toString());
-    
-    _coinAnimationController.forward(from: 0).then((_) {
-      if (!mounted) return;
+    try {
+      _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
+      _flutterTts.speak(_currentNumber.toString());
       
-      Timer(const Duration(milliseconds: 2500), () {
+      setState(() {
+        _showCoin = true;
+      });
+      
+      _coinAnimationController.reset();
+      _coinAnimationController.forward().then((_) {
         if (!mounted) return;
-        _coinAnimationController.reverse().then((_) {
+        
+        Timer(const Duration(milliseconds: 4000), () {
           if (!mounted) return;
-          setState(() {
-            _showCoin = false;
+          _coinAnimationController.reverse().then((_) {
+            if (!mounted) return;
+            setState(() {
+              _showCoin = false;
+            });
+            _audioPlayer.stop();
+            debugPrint('🪙 Coin animation completed');
           });
-          _audioPlayer.stop();
         });
       });
-    });
+    } catch (e) {
+      debugPrint('❌ Coin error: Unable to show - $e');
+      setState(() {
+        _showCoin = false;
+      });
+    }
   }
 
 
@@ -324,18 +357,22 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                               },
                             ),
                           ),
-                          // Coin Pop Animation - ALWAYS render, control with opacity
-                          Positioned.fill(
-                            child: AnimatedBuilder(
-                              animation: _coinAnimation,
-                              builder: (context, child) {
-                                if (!_showCoin) return const SizedBox.shrink();
-                                return Center(
-                                  child: _buildCoin(),
-                                );
-                              },
+                          // Coin Pop Animation - positioned above jar
+                          if (_showCoin)
+                            Positioned(
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              child: AnimatedBuilder(
+                                animation: _coinAnimation,
+                                builder: (context, child) {
+                                  return Center(
+                                    child: _buildCoin(),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -383,71 +420,53 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
 
   Widget _buildCoin() {
     double progress = _coinAnimation.value;
-    double scale = 0.4 + (progress * 0.6);
+    double scale = 0.7 + (progress * 0.3);
+    double opacity = progress < 0.15 ? progress * 6.67 : 1.0;
     
-    return Transform.scale(
-      scale: scale,
-      child: Container(
-        width: 280,
-        height: 280,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.amber.withOpacity(0.8),
-              blurRadius: 40,
-              spreadRadius: 15,
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Image.asset(
-              'assets/images/fam_coin.png',
-              width: 280,
-              height: 280,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                debugPrint('❌ Coin image failed to load');
-                return Container(
-                  width: 280,
-                  height: 280,
-                  decoration: BoxDecoration(
-                    color: Colors.amber,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.orange, width: 8),
-                  ),
-                );
-              },
-            ),
-            Text(
-              _currentNumber.toString(),
-              style: TextStyle(
-                fontSize: 110,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: -3,
-                shadows: [
-                  Shadow(
-                    color: Colors.black,
-                    blurRadius: 25,
-                    offset: const Offset(5, 5),
-                  ),
-                  Shadow(
-                    color: Colors.black.withOpacity(0.8),
-                    blurRadius: 35,
-                    offset: const Offset(0, 0),
-                  ),
-                  Shadow(
-                    color: Colors.deepOrange,
-                    blurRadius: 50,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
+    return Opacity(
+      opacity: opacity,
+      child: Transform.scale(
+        scale: scale,
+        child: Container(
+          width: 280,
+          height: 280,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFFFFD700).withOpacity(0.6),
+                blurRadius: 40,
+                spreadRadius: 15,
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(
+                'assets/images/fam_coin.png',
+                width: 280,
+                height: 280,
+                fit: BoxFit.contain,
+              ),
+              Text(
+                _currentNumber.toString(),
+                style: TextStyle(
+                  fontSize: 120,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -5,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -540,8 +559,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         return;
       }
       
-      final bookings = await BackendApiConfig.getMyBookings(token: token);
-      final bookingsList = bookings['bookings'] as List;
+      final result = await BackendApiConfig.getMyBookings(token: token);
+      final bookingsList = result['bookings'] as List;
       
       if (bookingsList.isEmpty) {
         if (mounted) {
@@ -552,9 +571,10 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         return;
       }
       
-      final latestBooking = bookingsList.first;
-      final ticketNumbers = latestBooking['ticketNumbers'] as List?;
-      final generatedNumbers = latestBooking['generatedNumbers'] as List?;
+      final booking = bookingsList.first;
+      final ticketNumbers = (booking['ticketNumbers'] as List?)?.cast<String>() ?? [];
+      final cardNumbers = (booking['cardNumbers'] as List?)?.cast<String>() ?? [];
+      final generatedNumbers = booking['generatedNumbers'] as List?;
       
       if (mounted) {
         showDialog(
@@ -568,30 +588,42 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                 children: [
                   if (generatedNumbers != null)
                     ...List.generate(generatedNumbers.length, (index) {
-                      final ticket = generatedNumbers[index];
-                      final ticketId = ticketNumbers?[index] ?? 'Ticket ${index + 1}';
+                      final ticket = generatedNumbers[index] as Map<String, dynamic>;
+                      final ticketId = ticketNumbers.length > index ? ticketNumbers[index] : 'Ticket ${index + 1}';
+                      final cardId = cardNumbers.length > index ? cardNumbers[index] : '';
                       
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (index > 0) const Divider(height: 24),
-                          Text(
-                            ticketId,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF059669),
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                ticketId,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                              if (cardId.isNotEmpty)
+                                Text(
+                                  'Card: $cardId',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1E3A8A),
+                                  ),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 12),
-                          if (ticket is Map)
-                            ...[
-                              _buildTicketLine('1st Line', (ticket['firstLine'] as List?)?.cast<int>() ?? []),
-                              const SizedBox(height: 12),
-                              _buildTicketLine('2nd Line', (ticket['secondLine'] as List?)?.cast<int>() ?? []),
-                              const SizedBox(height: 12),
-                              _buildTicketLine('3rd Line', (ticket['thirdLine'] as List?)?.cast<int>() ?? []),
-                            ],
+                          _buildTicketLine('1st Line', (ticket['firstLine'] as List?)?.cast<int>() ?? []),
+                          const SizedBox(height: 8),
+                          _buildTicketLine('2nd Line', (ticket['secondLine'] as List?)?.cast<int>() ?? []),
+                          const SizedBox(height: 8),
+                          _buildTicketLine('3rd Line', (ticket['thirdLine'] as List?)?.cast<int>() ?? []),
                         ],
                       );
                     }),

@@ -13,7 +13,20 @@ const GameEngine = require('./services/gameEngine');
 const { scheduleCleanup } = require('./jobs/cleanupScheduler');
 
 dotenv.config();
-connectDB();
+connectDB().then(async () => {
+  // Drop old unique index on startup
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const collection = db.collection('bookings');
+    await collection.dropIndex('userId_1_gameId_1_scheduledDate_1_timeSlot_1');
+    console.log('✅ Dropped old unique booking index');
+  } catch (e) {
+    if (!e.message.includes('not found')) {
+      console.log('⚠️ Index drop:', e.message);
+    }
+  }
+});
 scheduleCleanup();
 
 const app = express();
