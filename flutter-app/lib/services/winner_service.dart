@@ -2,6 +2,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/backend_api_config.dart';
 import '../models/winner.dart';
 import '../models/win_type.dart';
+import 'package:flutter/material.dart';
+import '../app_state/game_tilt/next_winner.dart';
 
 class WinnerService {
   static final WinnerService _instance = WinnerService._internal();
@@ -51,6 +53,27 @@ class WinnerService {
       return winners.firstWhere((w) => w.winType == 'HOUSIE');
     } catch (e) {
       return null;
+    }
+  }
+
+  Future<void> checkGameEndAndShowResult(BuildContext context, String gameId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    
+    final housieWinner = await getHousieWinner(gameId);
+    
+    if (housieWinner != null && context.mounted) {
+      final isWinner = housieWinner.userId == userId;
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NextGameScreeniWidget(
+            winnerUsername: housieWinner.username,
+            winnerUserId: housieWinner.userId,
+          ),
+        ),
+      );
     }
   }
 }

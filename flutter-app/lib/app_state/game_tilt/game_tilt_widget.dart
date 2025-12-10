@@ -79,7 +79,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           final newNumber = result['currentNumber'] ?? 0;
           final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
           
-          debugPrint('🔢 Current Number: $newNumber, Announced: $announcedList');
+          debugPrint('✅ Number fetched: $newNumber, Announced: $announcedList');
           
           if (newNumber > 0) {
             setState(() {
@@ -87,10 +87,10 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               _announcedNumbers = announcedList;
             });
             
-            // Wait for jar to complete one cycle before showing coin
-            Future.delayed(const Duration(milliseconds: 1500), () {
+            debugPrint('⏳ Waiting for jar tilt to end before showing coin...');
+            Future.delayed(const Duration(milliseconds: 2400), () {
               if (mounted) {
-                debugPrint('🚀 Triggering coin pop for number: $_currentNumber');
+                debugPrint('✅ Jar tilt ended, triggering coin animation');
                 _showCoinPop();
               }
             });
@@ -101,7 +101,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       _startContinuousAnimation();
       _startNumberPolling();
     } catch (e) {
-      debugPrint('❌ Failed to fetch announced number: $e');
+      debugPrint('❌ Fetching error: Failed to fetch announced number: $e');
       _startContinuousAnimation();
     }
   }
@@ -109,6 +109,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void _startContinuousAnimation() {
     if (_animationTimer != null && _animationTimer!.isActive) return;
     
+    debugPrint('🏺 Jar tilt started');
     _animationTimer = Timer.periodic(const Duration(milliseconds: 400), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -146,6 +147,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
           
           if (newNumber > 0 && newNumber != _currentNumber) {
+            debugPrint('✅ Number fetched (polling): $newNumber');
             setState(() {
               _currentNumber = newNumber;
               _announcedNumbers = announcedList;
@@ -154,38 +156,57 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           }
         }
       } catch (e) {
-        debugPrint('Failed to poll number: $e');
+        debugPrint('❌ Fetching error (polling): $e');
       }
     });
   }
 
   void _showCoinPop() {
-    if (_currentNumber == 0 || !mounted || _showCoin) return;
+    if (_currentNumber == 0) {
+      debugPrint('❌ Coin error: Unable to show - number is 0');
+      return;
+    }
+    if (!mounted) {
+      debugPrint('❌ Coin error: Unable to show - widget not mounted');
+      return;
+    }
+    if (_showCoin) {
+      debugPrint('❌ Coin error: Unable to show - coin already showing');
+      return;
+    }
     
-    debugPrint('🎯 Showing coin for number: $_currentNumber');
+    debugPrint('🪙 Coin showing for number: $_currentNumber');
     
-    _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
-    
-    setState(() {
-      _showCoin = true;
-    });
-    
-    _flutterTts.speak(_currentNumber.toString());
-    
-    _coinAnimationController.forward(from: 0).then((_) {
-      if (!mounted) return;
+    try {
+      _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
+      _flutterTts.speak(_currentNumber.toString());
       
-      Timer(const Duration(milliseconds: 4000), () {
+      setState(() {
+        _showCoin = true;
+      });
+      
+      _coinAnimationController.reset();
+      _coinAnimationController.forward().then((_) {
         if (!mounted) return;
-        _coinAnimationController.reverse().then((_) {
+        
+        Timer(const Duration(milliseconds: 4000), () {
           if (!mounted) return;
-          setState(() {
-            _showCoin = false;
+          _coinAnimationController.reverse().then((_) {
+            if (!mounted) return;
+            setState(() {
+              _showCoin = false;
+            });
+            _audioPlayer.stop();
+            debugPrint('🪙 Coin animation completed');
           });
-          _audioPlayer.stop();
         });
       });
-    });
+    } catch (e) {
+      debugPrint('❌ Coin error: Unable to show - $e');
+      setState(() {
+        _showCoin = false;
+      });
+    }
   }
 
 
