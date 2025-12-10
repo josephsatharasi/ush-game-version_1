@@ -60,19 +60,23 @@ const Winners = () => {
       return;
     }
 
+    if (!window.confirm(`Assign coupon "${couponCode.trim()}" to ${getWinTypeLabel(winType)} winner?`)) {
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
+      const response = await axios.post(
         `${API_URL}/game/${selectedGame}/assign-coupon`,
         { winType, couponCode: couponCode.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert('Coupon assigned successfully!');
+      alert('✅ Coupon assigned successfully!');
       fetchWinners(selectedGame);
       setCouponInputs({ ...couponInputs, [winType]: '' });
     } catch (error) {
       console.error('Error assigning coupon:', error);
-      alert(error.response?.data?.message || 'Error assigning coupon');
+      alert('❌ ' + (error.response?.data?.message || 'Error assigning coupon'));
     }
   };
 
