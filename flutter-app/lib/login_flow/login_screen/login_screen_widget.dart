@@ -78,17 +78,17 @@ class _LoginScreenWidgetState extends State<LoginScreenWidget> {
             ),
           ),
           // Hourglass image (left side coin 23)
-          Positioned(
-            top: 290,
-            left: 190,
-            child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/image copy.png',
-                width: 120,
-                height: 120,
-              ),
-            ),
-          ),
+          // Positioned(
+          //   top: 290,
+          //   left: 190,
+          //   child: IgnorePointer(
+          //     child: Image.asset(
+          //       '',
+          //       width: 120,
+          //       height: 120,
+          //     ),
+          //   ),
+          // ),
           // Coin with "13" (top left)
           Positioned(
             top: 120,

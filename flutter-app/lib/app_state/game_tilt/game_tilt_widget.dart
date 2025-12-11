@@ -127,12 +127,17 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           
           debugPrint('✅ Number fetched: $newNumber, Announced: $announcedList');
           
-          if (newNumber > 0) {
-            setState(() {
-              _currentNumber = newNumber;
-              _announcedNumbers = announcedList;
-            });
-            
+          // Use latest announced number or current number from backend
+          final latestNumber = announcedList.isNotEmpty ? announcedList.last : newNumber;
+          debugPrint('🎯 Using number: $latestNumber (from ${announcedList.isNotEmpty ? "announced list" : "current number"})');
+          
+          setState(() {
+            _currentNumber = latestNumber > 0 ? latestNumber : 0;
+            _announcedNumbers = announcedList;
+          });
+          
+          // Only show coin if we have a valid number
+          if (_currentNumber > 0) {
             debugPrint('⏳ Waiting for jar tilt to end before showing coin...');
             Future.delayed(const Duration(milliseconds: 2400), () {
               if (mounted) {
@@ -140,7 +145,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                 _showCoinPop();
               }
             });
+          } else {
+            debugPrint('❌ No valid number to show coin');
           }
+          
+
         }
       }
       
@@ -210,8 +219,12 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _showCoinPop() {
-    if (_currentNumber == 0 || _isAppInBackground) {
-      debugPrint('❌ Coin error: Unable to show - number is 0 or app in background');
+    if (_isAppInBackground) {
+      debugPrint('❌ Coin error: Unable to show - app in background');
+      return;
+    }
+    if (_currentNumber == 0) {
+      debugPrint('❌ Coin error: Unable to show - no valid number available');
       return;
     }
     if (!mounted) {
@@ -356,7 +369,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                             // Numbers button
                             GestureDetector(
                               onTap: () {
-                                Navigator.pushNamed(context, '/fam-playground', arguments: 'FIRST LINE');
+                                // Navigate to numbers screen without fam reference
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -407,19 +420,13 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                           ),
                           // Coin Pop Animation - positioned above jar
                           if (_showCoin)
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              child: AnimatedBuilder(
-                                animation: _coinAnimation,
-                                builder: (context, child) {
-                                  return Center(
-                                    child: _buildCoin(),
-                                  );
-                                },
-                              ),
+                            AnimatedBuilder(
+                              animation: _coinAnimation,
+                              builder: (context, child) {
+                                return Center(
+                                  child: _buildCoin(),
+                                );
+                              },
                             ),
                         ],
                       ),
@@ -467,54 +474,50 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   Widget _buildCoin() {
-    double progress = _coinAnimation.value;
-    double scale = 0.7 + (progress * 0.3);
-    double opacity = progress < 0.15 ? progress * 6.67 : 1.0;
+    double progress = _coinAnimation.value.clamp(0.0, 1.0);
+    double scale = 0.1 + (progress * 0.9);
+    double opacity = progress.clamp(0.0, 1.0);
     
     return Opacity(
       opacity: opacity,
       child: Transform.scale(
         scale: scale,
-        child: Container(
-          width: 280,
-          height: 280,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0xFFFFD700).withOpacity(0.6),
-                blurRadius: 40,
-                spreadRadius: 15,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Image.asset(
+              'assets/images/fam_coin.png',
+              width: 250,
+              height: 250,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 250,
+                  height: 250,
+                  decoration: BoxDecoration(
+                    color: Colors.amber,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.monetization_on, color: Colors.white, size: 150),
+                );
+              },
+            ),
+            Text(
+              _currentNumber.toString(),
+              style: TextStyle(
+                fontSize: 80,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Image.asset(
-                'assets/images/fam_coin.png',
-                width: 280,
-                height: 280,
-                fit: BoxFit.contain,
-              ),
-              Text(
-                _currentNumber.toString(),
-                style: TextStyle(
-                  fontSize: 120,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: -5,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
