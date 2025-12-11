@@ -11,6 +11,7 @@ const couponRoutes = require('./routes/coupon');
 const adminRoutes = require('./routes/admin');
 const GameEngine = require('./services/gameEngine');
 const { scheduleCleanup } = require('./jobs/cleanupScheduler');
+const { scheduleGameStarter } = require('./jobs/gameScheduler');
 
 dotenv.config();
 connectDB().then(async () => {
@@ -81,6 +82,9 @@ io.on('connection', (socket) => {
 // Store gameEngine and io globally for routes
 app.set('gameEngine', gameEngine);
 app.set('io', io);
+
+// Start game auto-scheduler
+scheduleGameStarter(gameEngine);
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.IPADDRESS || '0.0.0.0';

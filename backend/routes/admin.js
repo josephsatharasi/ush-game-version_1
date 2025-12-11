@@ -66,6 +66,58 @@ router.post('/games/:gameId/start', requireRole(['admin']), async (req, res) => 
 
 
 
+router.post('/games/:gameId/announce', requireRole(['admin']), async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { number } = req.body;
+
+    if (!number || number < 1 || number > 90) {
+      return res.status(400).json({ message: 'Invalid number. Must be between 1-90' });
+    }
+
+    const game = await LiveGame.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ message: 'Game not found' });
+    }
+
+    if (game.status !== 'LIVE') {
+      return res.status(400).json({ message: 'Game is not live' });
+    }
+
+    if (game.announcedNumbers.includes(number)) {
+      return res.status(400).json({ message: 'Number already announced' });
+    }
+
+    game.announcedNumbers.push(number);
+    game.currentNumber = number;
+    await game.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(gameId).emit('number:announced', {
+        number,
+        timestamp: new Date(),
+        announcedNumbers: game.announcedNumbers
+      });
+    }
+
+    res.json({ 
+      message: 'Number announced successfully',
+      game: {
+        announcedNumbers: game.announcedNumbers,
+        currentNumber: game.currentNumber,
+        firstLineWinner: game.firstLineWinner,
+        secondLineWinner: game.secondLineWinner,
+        thirdLineWinner: game.thirdLineWinner,
+        jaldiWinner: game.jaldiWinner,
+        housieWinner: game.housieWinner
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.post('/games/:gameId/end', requireRole(['admin']), async (req, res) => {
   try {
     if (!gameEngine) gameEngine = req.app.get('gameEngine');
