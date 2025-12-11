@@ -69,11 +69,6 @@ router.post('/games/:gameId/start', requireRole(['admin']), async (req, res) => 
 router.post('/games/:gameId/announce', requireRole(['admin']), async (req, res) => {
   try {
     const { gameId } = req.params;
-    const { number } = req.body;
-
-    if (!number || number < 1 || number > 90) {
-      return res.status(400).json({ message: 'Invalid number. Must be between 1-90' });
-    }
 
     const game = await LiveGame.findById(gameId);
     if (!game) {
@@ -84,9 +79,20 @@ router.post('/games/:gameId/announce', requireRole(['admin']), async (req, res) 
       return res.status(400).json({ message: 'Game is not live' });
     }
 
-    if (game.announcedNumbers.includes(number)) {
-      return res.status(400).json({ message: 'Number already announced' });
+    if (game.announcedNumbers.length >= 90) {
+      return res.status(400).json({ message: 'All numbers have been announced' });
     }
+
+    // Generate random number from remaining numbers
+    const availableNumbers = [];
+    for (let i = 1; i <= 90; i++) {
+      if (!game.announcedNumbers.includes(i)) {
+        availableNumbers.push(i);
+      }
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+    const number = availableNumbers[randomIndex];
 
     game.announcedNumbers.push(number);
     game.currentNumber = number;
@@ -106,6 +112,7 @@ router.post('/games/:gameId/announce', requireRole(['admin']), async (req, res) 
       game: {
         announcedNumbers: game.announcedNumbers,
         currentNumber: game.currentNumber,
+        remaining: 90 - game.announcedNumbers.length,
         firstLineWinner: game.firstLineWinner,
         secondLineWinner: game.secondLineWinner,
         thirdLineWinner: game.thirdLineWinner,
