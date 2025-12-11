@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ush_app/widgets/loction_header.dart';
 import 'package:ush_app/widgets/animated_jar_widget.dart';
 import 'package:ush_app/app_state/game_state_manager.dart';
-import 'package:ush_app/app_state/game_tilt/next_winner.dart';
+import 'package:ush_app/app_state/game_tilt/winner_screen.dart';
 import 'package:ush_app/services/game_number_service.dart';
 import 'package:ush_app/services/winner_service.dart';
 import 'package:ush_app/models/win_type.dart';
@@ -26,11 +26,6 @@ class _GameTiltHousiWidgetState extends State<GameTiltHousiWidget> with SingleTi
   }; // All Housi numbers
   final GameStateManager _gameState = GameStateManager();
   
-  // Add state for screen management
-  bool _showGameOver = false;
-  bool _showYouWon = false;
-  bool _showWinner = false;
-  late AnimationController _animationController;
   String? _winnerUsername;
   String? _winnerUserId;
   bool _isClaimingWin = false;
@@ -39,410 +34,54 @@ class _GameTiltHousiWidgetState extends State<GameTiltHousiWidget> with SingleTi
   void initState() {
     super.initState();
     _gameState.markAsVisited('HOUSI');
-    _animationController = AnimationController(
-      vsync: this,
-      duration: Duration(milliseconds: 500),
-    );
-    
-    // Start the sequence after 2 seconds
-    Future.delayed(Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _showGameOver = true);
-        // After 2 seconds, show You Won
-        Future.delayed(Duration(seconds: 2), () {
-          if (mounted) {
-            setState(() {
-              _showGameOver = false;
-              _showYouWon = true;
-            });
-            // After 2 more seconds, show Winner
-            Future.delayed(Duration(seconds: 2), () {
-              if (mounted) {
-                setState(() {
-                  _showYouWon = false;
-                  _showWinner = true;
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
+      body: Column(
         children: [
-          // Main content
-          Column(
-            children: [
-              AppHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: GestureDetector(
-                            onTap: () => Navigator.pop(context),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.arrow_back, size: 20),
-                                SizedBox(width: 8),
-                                Text('GO BACK', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          ),
+          AppHeader(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.arrow_back, size: 20),
+                            SizedBox(width: 8),
+                            Text('GO BACK', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
                         ),
-                        SizedBox(height: 12),
-                        Align(
-                          alignment: Alignment.bottomLeft,
-                          child: _buildNumberGridCard(),
-                        ),
-                        SizedBox(height: 12),
-                        _buildGameTypeButtons(),
-                        SizedBox(height: 20),
-                      ],
+                      ),
                     ),
-                  ),
+                    SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: _buildNumberGridCard(),
+                    ),
+                    SizedBox(height: 12),
+                    _buildGameTypeButtons(),
+                    SizedBox(height: 20),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
-          
-          // Overlay screens
-          if (_showGameOver) _buildGameOverScreen(),
-          if (_showYouWon) _buildYouWonScreen(),
-          if (_showWinner) _buildWinnerScreen(),
         ],
       ),
     );
   }
-    // Game Over Screen
- // Game Over Screen
-Widget _buildGameOverScreen() {
-  return Container(
-    color: Colors.black54,
-    child: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Game Over Box
-          Container(
-            width: 280,
-            height: 280,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-              ),
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black54,
-                  blurRadius: 25,
-                  offset: Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text(
-                      'Game',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Over',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 18),
-                  ],
-                ),
 
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Image.asset(
-                    'assets/images/numberBox2.png',
-                    width: 100,
-                    height: 100,
-                  ),
-                ),
-
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  child: Image.asset(
-                    'assets/images/numberBox1.png',
-                    width: 100,
-                    height: 100,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 28),
-
-          // Button
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)],
-              ),
-              borderRadius: BorderRadius.circular(36),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black54,
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(Icons.arrow_forward, color: Colors.white, size: 22),
-                SizedBox(width: 8),
-                Text(
-                  'Who Won 🤔',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          )
-        ],
-      ),
-    ),
-  );
-}
-// Winner Screen
-Widget _buildWinnerScreen() {
-  return Container(
-    color: Colors.black54,
-    child: Center(
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => NextGameScreeniWidget(
-                winnerUsername: _winnerUsername,
-                winnerUserId: _winnerUserId,
-              ),
-            ),
-          );
-        },
-        child: Container(
-          width: 280,
-          height: 280,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-            ),
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black54,
-                blurRadius: 25,
-                offset: Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 5, top: 30),
-                    child: Text(
-                      'Winner',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w400,
-                        height: 1.1,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  Padding(
-                    padding: EdgeInsets.only(left: 20),
-                    child: Text(
-                      _winnerUsername ?? 'Unknown',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w400,
-                        height: 1.1,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Positioned(
-                top: 16,
-                right: 16,
-                child: Image.asset(
-                  'assets/images/winEmoji.png',
-                  width: 100,
-                  height: 100,
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                child: Transform.rotate(
-                  angle: 0,
-                  child: Image.asset(
-                    'assets/images/numberBox1.png',
-                    width: 100,
-                    height: 100,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-
-// You Won Screen
-Widget _buildYouWonScreen() {
-  return Container(
-    color: Colors.black54,
-    child: Center(
-      child: Container(
-        width: 280,
-        height: 280,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
-          ),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black54,
-              blurRadius: 25,
-              offset: Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-       const Padding(
-                  padding: EdgeInsets.only(left: 0),
-                child: Text(
-                  'You',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 50,
-                    fontWeight: FontWeight.bold,
-                    height: 1.1,
-                  ),
-                ),
-           ),
-                const SizedBox(height: 4),
-                const Padding(
-                  padding: EdgeInsets.only(left: 20),
-                  child: Text(
-                    'Won',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 50,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Image.asset(
-                'assets/images/winEmoji.png',
-                  width: 100,
-                  height: 100,
-              ),
-            ),
-              Positioned(
-              bottom: 0,
-              right: 3,
-              child: Image.asset(
-                'assets/images/coinsBag.png',
-                width: 100,
-                height: 100,
-                fit: BoxFit.contain,
-              ),
-            ),
-                Positioned(
-              bottom: 0,
-              left: 0,
-              child: Transform.rotate(
-                angle: 0,
-                child: Image.asset(
-                  'assets/images/numberBox1.png',
-                  width: 100,
-                  height: 100,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
 
 Widget _buildNumberGridCard() {
   return Container(
@@ -560,7 +199,11 @@ Widget _buildNumberGridCard() {
         if (_isClaimingWin) return;
         
         setState(() => _isClaimingWin = true);
-        GameNumberService().stopGame();
+        try {
+          GameNumberService().stopGame();
+        } catch (e) {
+          print('Error stopping game: $e');
+        }
         
         try {
           final prefs = await SharedPreferences.getInstance();
@@ -568,13 +211,14 @@ Widget _buildNumberGridCard() {
           final cardNumber = prefs.getString('cardNumber');
           
           if (gameId != null && cardNumber != null) {
-            await WinnerService().claimWin(
+            final winnerService = WinnerService();
+            await winnerService.claimWin(
               gameId: gameId,
               winType: WinType.HOUSIE,
               cardNumber: cardNumber,
             );
             
-            final winner = await WinnerService().getHousieWinner(gameId);
+            final winner = await winnerService.getHousieWinner(gameId);
             if (winner != null) {
               setState(() {
                 _winnerUsername = winner.username ?? 'Unknown';
@@ -589,12 +233,12 @@ Widget _buildNumberGridCard() {
         }
         
         if (mounted) {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => NextGameScreeniWidget(
-                winnerUsername: _winnerUsername,
-                winnerUserId: _winnerUserId,
+              builder: (context) => WinnerScreen(
+                winnerUsername: _winnerUsername ?? 'Unknown',
+                winnerUserId: _winnerUserId ?? '',
               ),
             ),
           );

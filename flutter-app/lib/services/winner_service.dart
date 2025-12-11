@@ -3,7 +3,7 @@ import '../config/backend_api_config.dart';
 import '../models/winner.dart';
 import '../models/win_type.dart';
 import 'package:flutter/material.dart';
-import '../app_state/game_tilt/next_winner.dart';
+
 
 class WinnerService {
   static final WinnerService _instance = WinnerService._internal();
@@ -69,24 +69,33 @@ class WinnerService {
     return couponsJson.map((json) => Winner.fromJson(json)).toList();
   }
 
-  Future<void> checkGameEndAndShowResult(BuildContext context, String gameId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    
-    final housieWinner = await getHousieWinner(gameId);
-    
-    if (housieWinner != null && context.mounted) {
-      final isWinner = housieWinner.userId == userId;
+  Future<bool> canClaimWin(String winType) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final gameId = prefs.getString('gameId');
       
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => NextGameScreeniWidget(
-            winnerUsername: housieWinner.username,
-            winnerUserId: housieWinner.userId,
-          ),
-        ),
+      if (token == null || gameId == null) return false;
+
+      final status = await BackendApiConfig.getGameStatus(
+        token: token,
+        gameId: gameId,
       );
+
+      final winnerFields = {
+        'FIRST_LINE': 'firstLineWinner',
+        'SECOND_LINE': 'secondLineWinner',
+        'THIRD_LINE': 'thirdLineWinner',
+        'JALDI': 'jaldiWinner',
+        'HOUSIE': 'housieWinner',
+      };
+
+      final field = winnerFields[winType];
+      if (field == null) return false;
+
+      return status[field] == null;
+    } catch (e) {
+      return false;
     }
   }
 }

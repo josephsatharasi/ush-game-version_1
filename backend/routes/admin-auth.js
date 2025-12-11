@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const config = require('../config/environment');
 const Account = require('../models/Account');
 const { sendOTP } = require('../utils/sms');
 const router = express.Router();
@@ -29,7 +30,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: account._id, role: account.role }, 
-      process.env.JWT_SECRET, 
+      config.JWT_SECRET, 
       { expiresIn: '7d' }
     );
     
@@ -58,7 +59,7 @@ router.post('/register', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY || 300000));
+    const otpExpiry = new Date(Date.now() + parseInt(config.OTP_EXPIRY || 300000));
 
     account = new Account({ 
       username, 
@@ -123,7 +124,7 @@ router.post('/resend-otp', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY || 300000));
+    const otpExpiry = new Date(Date.now() + parseInt(config.OTP_EXPIRY || 300000));
 
     account.otp = otp;
     account.otpExpiry = otpExpiry;

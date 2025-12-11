@@ -118,18 +118,31 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void _pauseAllActivities() {
     debugPrint('⏸️ PAUSE: Pausing all game activities');
     _animationTimer?.cancel();
+    _animationTimer = null;
     _numberFetchTimer?.cancel();
+    _numberFetchTimer = null;
     _audioPlayer.stop();
     _flutterTts.stop();
     if (_coinAnimationController.isAnimating) {
       _coinAnimationController.stop();
     }
     if (mounted) {
-      setState(() {
-        _showCoin = false;
-      });
+      try {
+        setState(() {
+          _showCoin = false;
+        });
+      } catch (e) {
+        debugPrint('⏸️ PAUSE: setState error (widget disposed): $e');
+      }
     }
     debugPrint('⏸️ PAUSE: All activities paused');
+  }
+
+  void stopGameCompletely() {
+    debugPrint('🛑 GAME STOP: Stopping all game activities permanently');
+    _pauseAllActivities();
+    // Mark game as stopped to prevent any restart
+    _isAppInBackground = true;
   }
 
   void _resumeAllActivities() {
@@ -149,85 +162,47 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       final token = prefs.getString('token');
       final gameId = prefs.getString('gameId');
       
-      debugPrint('🔑 Token: ${token != null}, GameId: ${gameId != null}');
+      debugPrint('🔑 BACKEND: Token: ${token != null}, GameId: ${gameId != null}');
       
       if (token != null && gameId != null) {
-        // First try to get announced numbers
-        try {
-          final result = await BackendApiConfig.getAnnouncedNumbers(
-            token: token,
-            gameId: gameId,
-          );
+        final result = await BackendApiConfig.getAnnouncedNumbers(
+          token: token,
+          gameId: gameId,
+        );
+        
+        debugPrint('📦 BACKEND: API Response: $result');
+        
+        if (mounted) {
+          final currentNumber = result['currentNumber'] ?? 0;
+          final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
+          final remaining = result['remaining'] ?? 0;
           
-          debugPrint('📦 Announced Numbers API Response: $result');
+          debugPrint('✅ BACKEND: Current: $currentNumber, Announced: $announcedList, Remaining: $remaining');
+          _model.updateFromAnnouncedNumbers(result);
           
-          if (mounted) {
-            final currentNumber = result['currentNumber'] ?? 0;
-            final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
-            final remaining = result['remaining'] ?? 0;
-            
-            debugPrint('✅ Backend Data - Current: $currentNumber, Announced: $announcedList, Remaining: $remaining');
-            
-            setState(() {
-              _currentNumber = currentNumber;
-              _announcedNumbers = announcedList;
-            });
-            
-            // Show coin animation for current number if valid
-            if (_currentNumber > 0) {
-              debugPrint('⏳ Waiting for jar tilt to end before showing coin...');
-              Future.delayed(const Duration(milliseconds: 2400), () {
-                if (mounted) {
-                  debugPrint('✅ Jar tilt ended, triggering coin animation for number: $_currentNumber');
-                  _showCoinPop();
-                }
-              });
-            }
-          }
-        } catch (announcedError) {
-          debugPrint('❌ Announced Numbers API failed: $announcedError');
+          setState(() {
+            _currentNumber = currentNumber;
+            _announcedNumbers = announcedList;
+          });
           
-          // Fallback to game status API
-          try {
-            final statusResult = await BackendApiConfig.getGameStatus(
-              token: token,
-              gameId: gameId,
-            );
-            
-            debugPrint('📦 Game Status API Response: $statusResult');
-            
-            if (mounted) {
-              final currentNumber = statusResult['currentNumber'] ?? 0;
-              final announcedList = (statusResult['announcedNumbers'] as List?)?.cast<int>() ?? [];
-              
-              debugPrint('✅ Status Data - Current: $currentNumber, Announced: $announcedList');
-              
-              setState(() {
-                _currentNumber = currentNumber;
-                _announcedNumbers = announcedList;
-              });
-              
-              if (_currentNumber > 0) {
-                Future.delayed(const Duration(milliseconds: 2400), () {
-                  if (mounted) {
-                    _showCoinPop();
-                  }
-                });
+          // Show coin animation for current number if valid
+          if (_currentNumber > 0) {
+            debugPrint('🏺 JAR: Starting tilt animation, then showing coin for: $_currentNumber');
+            Future.delayed(const Duration(milliseconds: 2400), () {
+              if (mounted) {
+                _showCoinPop();
               }
-            }
-          } catch (statusError) {
-            debugPrint('❌ Game Status API also failed: $statusError');
-            // No fallback - rely purely on backend
+            });
           }
         }
       } else {
-        debugPrint('❌ Missing token or gameId - cannot fetch from backend');
+        debugPrint('❌ BACKEND: Missing credentials - cannot fetch');
       }
       
       _startContinuousAnimation();
       _startNumberPolling();
     } catch (e) {
-      debugPrint('❌ Critical error in _fetchAnnouncedNumber: $e');
+      debugPrint('❌ BACKEND: Critical error - $e');
       _startContinuousAnimation();
     }
   }
@@ -265,111 +240,77 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       return;
     }
     
-    debugPrint('🔄 POLLING: Starting number polling every 3 seconds');
-    _numberFetchTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+    debugPrint('🔄 POLLING: Starting backend polling every 2 seconds');
+    _numberFetchTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
       if (!mounted || _isAppInBackground) {
         debugPrint('🔄 POLLING: Stopping - mounted: $mounted, background: $_isAppInBackground');
         timer.cancel();
         return;
       }
       
-      debugPrint('🔄 POLLING: Fetching new numbers...');
       try {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('token');
         final gameId = prefs.getString('gameId');
         
         if (token != null && gameId != null) {
-          // Try announced numbers API first
-          try {
-            final result = await BackendApiConfig.getAnnouncedNumbers(
-              token: token,
-              gameId: gameId,
-            );
-            
-            if (!mounted || _isAppInBackground) return;
-            
-            final newNumber = result['currentNumber'] ?? 0;
-            final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
-            final remaining = result['remaining'] ?? 0;
-            
-            debugPrint('🔄 POLLING: API Response - Current: $newNumber, Announced: ${announcedList.length}, Remaining: $remaining');
-            
-            // Check if there's a new number to announce
-            if (newNumber > 0 && newNumber != _currentNumber) {
-              debugPrint('🔄 POLLING: New number detected: $newNumber (was $_currentNumber)');
-              setState(() {
-                _currentNumber = newNumber;
-                _announcedNumbers = announcedList;
-              });
-              _model.updateFromAnnouncedNumbers(result);
-              _showCoinPop();
-            } else if (announcedList.isNotEmpty && announcedList.length != _announcedNumbers.length) {
-              debugPrint('🔄 POLLING: Announced numbers list updated: ${announcedList.length} items');
-              setState(() {
-                _announcedNumbers = announcedList;
-              });
-              _model.updateFromAnnouncedNumbers(result);
-            } else {
-              debugPrint('🔄 POLLING: No changes detected');
-            }
-          } catch (announcedError) {
-            debugPrint('🔄 POLLING: Announced numbers API failed, trying status API');
-            final statusResult = await BackendApiConfig.getGameStatus(
-              token: token,
-              gameId: gameId,
-            );
-            
-            if (!mounted || _isAppInBackground) return;
-            
-            final newNumber = statusResult['currentNumber'] ?? 0;
-            final announcedList = (statusResult['announcedNumbers'] as List?)?.cast<int>() ?? [];
-            
-            if (newNumber > 0 && newNumber != _currentNumber) {
-              debugPrint('🔄 POLLING: New number from status API: $newNumber');
-              setState(() {
-                _currentNumber = newNumber;
-                _announcedNumbers = announcedList;
-              });
-              _model.updateFromGameStatus(statusResult);
-              _showCoinPop();
-            }
+          final result = await BackendApiConfig.getAnnouncedNumbers(
+            token: token,
+            gameId: gameId,
+          );
+          
+          if (!mounted || _isAppInBackground) return;
+          
+          final newNumber = result['currentNumber'] ?? 0;
+          final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
+          final remaining = result['remaining'] ?? 0;
+          
+          debugPrint('🔄 BACKEND: Current: $newNumber, Count: ${announcedList.length}, Remaining: $remaining');
+          debugPrint('🔢 BACKEND: Numbers: $announcedList');
+          
+          // Check for new number announcement
+          if (newNumber > 0 && newNumber != _currentNumber) {
+            debugPrint('🎆 NEW NUMBER: $newNumber (was $_currentNumber)');
+            setState(() {
+              _currentNumber = newNumber;
+              _announcedNumbers = announcedList;
+            });
+            _model.updateFromAnnouncedNumbers(result);
+            _showCoinPop();
+          } else if (announcedList.length != _announcedNumbers.length) {
+            debugPrint('🔄 BACKEND: List updated: ${announcedList.length} numbers');
+            setState(() {
+              _announcedNumbers = announcedList;
+            });
+            _model.updateFromAnnouncedNumbers(result);
           }
         } else {
-          debugPrint('🔄 POLLING: Missing token or gameId');
+          debugPrint('❌ BACKEND: Missing credentials for polling');
         }
       } catch (e) {
-        debugPrint('❌ POLLING: Critical error - $e');
+        debugPrint('❌ BACKEND: Polling error - $e');
       }
     });
   }
 
   void _showCoinPop() {
-    if (_isAppInBackground) {
-      debugPrint('❌ Coin error: Unable to show - app in background');
-      return;
-    }
-    if (_currentNumber == 0) {
-      debugPrint('❌ Coin error: Unable to show - no valid number available');
-      return;
-    }
-    if (!mounted) {
-      debugPrint('❌ Coin error: Unable to show - widget not mounted');
-      return;
-    }
-    if (_showCoin) {
-      debugPrint('❌ Coin error: Unable to show - coin already showing');
+    if (_isAppInBackground || _currentNumber == 0 || !mounted || _showCoin) {
+      debugPrint('❌ COIN: Cannot show - bg:$_isAppInBackground, num:$_currentNumber, mounted:$mounted, showing:$_showCoin');
       return;
     }
     
-    debugPrint('🪙 Coin showing for number: $_currentNumber');
+    debugPrint('🪙 COIN: Showing backend number: $_currentNumber');
+    debugPrint('🔊 TTS: Speaking number: $_currentNumber');
     
     try {
+      // Play jar shaking sound
       _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
-        debugPrint('Audio play error: $e');
+        debugPrint('❌ AUDIO: Error - $e');
       });
+      
+      // Speak the backend number
       _flutterTts.speak(_currentNumber.toString()).catchError((e) {
-        debugPrint('TTS error: $e');
+        debugPrint('❌ TTS: Error - $e');
       });
       
       if (mounted && !_isAppInBackground) {
@@ -389,13 +330,13 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                 _showCoin = false;
               });
               _audioPlayer.stop();
-              debugPrint('🪙 Coin animation completed');
+              debugPrint('🪙 COIN: Animation completed for $_currentNumber');
             });
           });
         });
       }
     } catch (e) {
-      debugPrint('❌ Coin error: Unable to show - $e');
+      debugPrint('❌ COIN: Critical error - $e');
       if (mounted) {
         setState(() {
           _showCoin = false;
@@ -405,6 +346,27 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
 
+
+  Future<void> _exitGame() async {
+    debugPrint('🚪 EXIT: User requested to exit game');
+    
+    // Clean up game state
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isInGame', false);
+    debugPrint('🚪 EXIT: Game state cleared');
+    
+    // Stop all activities before navigation
+    _pauseAllActivities();
+    
+    if (mounted) {
+      // Navigate to home and clear all previous routes
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/home',
+        (route) => false,
+      );
+      debugPrint('🚪 EXIT: Navigated to home screen');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -421,13 +383,16 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                 child: const Text('No'),
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () {
+                  Navigator.of(context).pop(true);
+                  _exitGame();
+                },
                 child: const Text('Yes'),
               ),
             ],
           ),
         );
-        return shouldExit ?? false;
+        return false; // Prevent default back behavior
       },
       child: Scaffold(
         backgroundColor: Colors.white,
@@ -501,7 +466,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                             GestureDetector(
                               onTap: () {
                                 debugPrint('🔢 BUTTON: Numbers button tapped');
-                                // Navigate to numbers screen without fam reference
+                                debugPrint('🔢 BUTTON: Navigating to fam-playground');
+                                Navigator.pushNamed(context, '/fam-playground');
                               },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -669,7 +635,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         debugPrint('🎯 BUTTON: Card type selected: $name');
         // Navigate with current number
         if (name == 'HOUSI') {
-          debugPrint('🎯 BUTTON: Navigating to HOUSI screen with number: $_currentNumber');
+          debugPrint('🎯 BUTTON: Stopping game and navigating to HOUSI screen');
+          stopGameCompletely(); // Stop all game activities permanently
           Navigator.pushNamed(context, '/game-tilt-housi', arguments: _currentNumber);
         }
       },

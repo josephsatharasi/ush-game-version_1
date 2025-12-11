@@ -37,8 +37,9 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
     _fetchCouponData();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 800),
+      duration: Duration(milliseconds: 1500),
     );
+    _animationController.repeat(); // Repeat the hand gesture animation
 
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -144,9 +145,13 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
           });
           
           // Auto navigate after showing result
-          Future.delayed(Duration(seconds: 3), () {
+          Future.delayed(Duration(seconds: 4), () {
             if (mounted) {
-              Navigator.pushReplacementNamed(context, '/home');
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/home',
+                (route) => false,
+              );
             }
           });
         }
@@ -331,7 +336,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
         width: double.infinity,
         height: 250,
         decoration: BoxDecoration(
-          color: Color(0xFF1E3A8A), // Blue background
+          color: Color(0xFF1E3A8A),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
@@ -344,20 +349,42 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // White "M" shape or pattern (placeholder - you can replace with actual image)
+            // Scratch pattern
             Icon(
               Icons.card_giftcard,
               size: 120,
               color: Colors.white.withOpacity(0.3),
             ),
-            // Yellow hand icon for scratching
+            // Animated hand gesture
             Positioned(
-              right: 20,
-              top: 20,
-              child: Icon(
-                Icons.touch_app,
-                size: 40,
-                color: Colors.amber,
+              right: 30,
+              top: 30,
+              child: AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(
+                      10 * (0.5 - (_animationController.value % 1.0).abs()),
+                      0,
+                    ),
+                    child: Text(
+                      '👆',
+                      style: TextStyle(fontSize: 40),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // Scratch instruction
+            Positioned(
+              bottom: 30,
+              child: Text(
+                'Tap to scratch',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

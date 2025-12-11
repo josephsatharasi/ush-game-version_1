@@ -46,24 +46,33 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
         
         // Load user bookings
         try {
+          debugPrint('🎫 COUNTDOWN: Fetching card number from backend...');
           final result = await BackendApiConfig.getMyBookings(token: token);
+          debugPrint('🎫 COUNTDOWN: Backend response received: ${result.toString()}');
           final bookingsList = result['bookings'] as List;
           
           if (bookingsList.isNotEmpty) {
             final booking = bookingsList.first;
             final cardNumbers = (booking['cardNumbers'] as List?)?.cast<String>() ?? [];
+            debugPrint('🎫 COUNTDOWN: Card numbers from backend: $cardNumbers');
             
             if (cardNumbers.isNotEmpty) {
               await prefs.setString('cardNumber', cardNumbers[0]);
+              debugPrint('🎫 COUNTDOWN: ✅ Card number fetched from backend: ${cardNumbers[0]}');
               if (mounted) {
                 setState(() {
                   _cardNumber = cardNumbers[0];
+                  _cardNumberController.text = cardNumbers[0];
                 });
               }
+            } else {
+              debugPrint('🎫 COUNTDOWN: ❌ No card numbers found in booking');
             }
+          } else {
+            debugPrint('🎫 COUNTDOWN: ❌ No bookings found for user');
           }
         } catch (e) {
-          debugPrint('Failed to load bookings: $e');
+          debugPrint('🎫 COUNTDOWN: ❌ Failed to load bookings from backend: $e');
         }
         
         if (mounted) {
@@ -76,9 +85,39 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
           _startCountdown();
         }
       } else {
+        // Load card number from SharedPreferences if available
+        debugPrint('🎫 COUNTDOWN: No backend token/gameId, checking SharedPreferences...');
+        final prefs = await SharedPreferences.getInstance();
+        final storedCardNumber = prefs.getString('cardNumber');
+        if (storedCardNumber != null && storedCardNumber.isNotEmpty) {
+          debugPrint('🎫 COUNTDOWN: ✅ Card number found in SharedPreferences: $storedCardNumber');
+          if (mounted) {
+            setState(() {
+              _cardNumber = storedCardNumber;
+              _cardNumberController.text = storedCardNumber;
+            });
+          }
+        } else {
+          debugPrint('🎫 COUNTDOWN: ❌ No card number in SharedPreferences');
+        }
         _startCountdown();
       }
     } catch (e) {
+      // Load card number from SharedPreferences even on error
+      debugPrint('🎫 COUNTDOWN: Error occurred, falling back to SharedPreferences...');
+      final prefs = await SharedPreferences.getInstance();
+      final storedCardNumber = prefs.getString('cardNumber');
+      if (storedCardNumber != null && storedCardNumber.isNotEmpty) {
+        debugPrint('🎫 COUNTDOWN: ✅ Fallback card number from SharedPreferences: $storedCardNumber');
+        if (mounted) {
+          setState(() {
+            _cardNumber = storedCardNumber;
+            _cardNumberController.text = storedCardNumber;
+          });
+        }
+      } else {
+        debugPrint('🎫 COUNTDOWN: ❌ No fallback card number available');
+      }
       _startCountdown();
     }
   }
@@ -548,32 +587,50 @@ Positioned(
  ),
                                         ),
                                       ),
+                                      // Show card number info only after booking
                                       if (_cardNumber.isNotEmpty) ...[
-                                        SizedBox(height: 16),
+                                        SizedBox(height: 12),
                                         Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.9),
+                                            color: Colors.green.withOpacity(0.1),
                                             borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.green.withOpacity(0.3)),
                                           ),
                                           child: Column(
                                             children: [
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                                  SizedBox(width: 6),
+                                                  Text(
+                                                    'Ticket Booked Successfully',
+                                                    style: TextStyle(
+                                                      color: Colors.green[700],
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              SizedBox(height: 8),
                                               Text(
-                                                'Your Card Number',
+                                                'Your Card Number: $_cardNumber',
                                                 style: TextStyle(
                                                   color: Color(0xFF1E3A8A),
-                                                  fontSize: 12,
+                                                  fontSize: 16,
                                                   fontWeight: FontWeight.bold,
+                                                  letterSpacing: 1,
                                                 ),
                                               ),
-                                              SizedBox(height: 6),
+                                              SizedBox(height: 4),
                                               Text(
-                                                _cardNumber,
+                                                'Fetched from Backend',
                                                 style: TextStyle(
-                                                  color: Color(0xFF1E3A8A),
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  letterSpacing: 2,
+                                                  color: Colors.grey[600],
+                                                  fontSize: 10,
+                                                  fontStyle: FontStyle.italic,
                                                 ),
                                               ),
                                             ],

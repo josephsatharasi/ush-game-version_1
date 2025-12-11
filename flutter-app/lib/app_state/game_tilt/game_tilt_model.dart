@@ -5,21 +5,20 @@ class GameTiltModel {
   String? selectedCardType;
   int currentNumber = 0;
   List<int> announcedNumbers = [];
-  int remainingNumbers = 90;
+  int remainingNumbers = 0;
   String gameStatus = 'WAITING';
   Map<String, dynamic>? winners;
 
-  final List<Map<String, dynamic>> cardTypes = [
-    {'name': 'FIRST LINE', 'color': Color(0xFF1E40AF)},
-    {'name': 'SECOND LINE', 'color': Color(0xFFDC2626)},
-    {'name': 'THIRD LINE', 'color': Color(0xFF059669)},
-    {'name': 'JALDHI', 'color': Color(0xFFF59E0B)},
-    {'name': 'HOUSI', 'color': Color(0xFF9F1239)},
-  ];
+  List<Map<String, dynamic>> cardTypes = [];
 
   void selectCardType(String type) {
     debugPrint('🃏 MODEL: Card type selected - $type (was: $selectedCardType)');
     selectedCardType = type;
+  }
+
+  void updateCardTypes(List<Map<String, dynamic>> types) {
+    cardTypes = types;
+    debugPrint('📊 MODEL: Card types updated from backend: ${types.length} types');
   }
 
   void updateFromAnnouncedNumbers(Map<String, dynamic> data) {
@@ -29,7 +28,7 @@ class GameTiltModel {
     
     currentNumber = data['currentNumber'] ?? 0;
     announcedNumbers = (data['announcedNumbers'] as List?)?.cast<int>() ?? [];
-    remainingNumbers = data['remaining'] ?? 90;
+    remainingNumbers = data['remaining'] ?? 0;
     
     debugPrint('📊 MODEL: Updated from announced numbers API');
     debugPrint('📊 MODEL: Current number: $oldCurrentNumber → $currentNumber');

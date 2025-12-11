@@ -1,20 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'environment_config.dart';
-class EnvironmentConfig {
-  static const bool _isLocal = bool.fromEnvironment('USE_LOCAL', defaultValue: false);
-  
-  static const String _localUrl = 'http://192.168.0.22:5000';
-  static const String _liveUrl = 'https://ush-game-version-1.onrender.com';
-  
-  static String get baseUrl => _isLocal ? _localUrl : _liveUrl;
-  static String get environment => _isLocal ? 'local' : 'live';
-  
-  static void printConfig() {
-    print('🔧 Flutter Environment: $environment');
-    print('🌐 API Base URL: $baseUrl');
-  }
-}
+
 class BackendApiConfig {
   static String get baseUrl => '${EnvironmentConfig.baseUrl}/api';
   

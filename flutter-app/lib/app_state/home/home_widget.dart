@@ -95,6 +95,7 @@ class _HomeWidgetState extends State<HomeWidget> {
     final token = prefs.getString('token');
     final gameId = prefs.getString('gameId');
     
+    // Only clear the flag if game is no longer live, don't auto-navigate
     if (isInGame && token != null && gameId != null) {
       try {
         final status = await BackendApiConfig.getGameStatus(
@@ -102,16 +103,11 @@ class _HomeWidgetState extends State<HomeWidget> {
           gameId: gameId,
         );
         
-        if (status['status'] == 'LIVE' && mounted) {
-          // Navigate back to game
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => GameStartsCountdown()),
-          );
-        } else {
+        if (status['status'] != 'LIVE') {
           // Game ended, clear flag
           await prefs.setBool('isInGame', false);
         }
+        // Removed auto-navigation - let user manually navigate
       } catch (e) {
         // Clear flag on error
         await prefs.setBool('isInGame', false);
