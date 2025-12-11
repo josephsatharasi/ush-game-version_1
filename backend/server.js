@@ -89,5 +89,5 @@ const PORT = config.PORT || 5000;
 const HOST = process.env.IPADDRESS || '0.0.0.0';
 
 server.listen(PORT, HOST, () => {
-  console.log(`🚀 Server running on ${HOST}:${PORT} (${config.ENVIRONMENT} mode)`);
+  console.log(`🚀 Server running on ${HOST}:${PORT}`);
 });
