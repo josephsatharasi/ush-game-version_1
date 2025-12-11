@@ -18,9 +18,14 @@ class HomeModel {
 
   String ticketNumber = '';
   String generatedNumbers = '';
+  String currentLocation = 'Fetching location...';
   
   List<int> getNumbersList() {
     if (generatedNumbers.isEmpty) return [];
     return generatedNumbers.split(',').map((e) => int.tryParse(e.trim()) ?? 0).toList();
+  }
+
+  void updateLocation(String location) {
+    currentLocation = location;
   }
 }

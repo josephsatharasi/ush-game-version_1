@@ -5,7 +5,9 @@ import '../../widgets/loction_header.dart';
 import '../../widgets/order_successful.dart';
 import '../../services/background_music_service.dart';
 import '../../services/game_service.dart';
+import '../../services/location_service.dart';
 import '../../config/backend_api_config.dart';
+import '../bottom_navbar/bottom_navbar_widget.dart';
 
 class LiveGametype1Widget extends StatefulWidget {
   const LiveGametype1Widget({super.key});
@@ -19,11 +21,24 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
   bool _showCustomTicketPopup = false;
   bool _isLoading = false;
   String? _gameId;
+  int _currentNavIndex = 2; // Playground tab
+  final LocationService _locationService = LocationService();
+  String _currentLocation = 'Fetching location...';
 
   @override
   void initState() {
     super.initState();
     BackgroundMusicService().play();
+    _fetchCurrentLocation();
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    await _locationService.getCurrentLocation();
+    if (mounted) {
+      setState(() {
+        _currentLocation = _locationService.currentAddress;
+      });
+    }
   }
 
   @override
@@ -188,6 +203,27 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
 
 
 
+  void _onNavTap(int index) {
+    setState(() {
+      _currentNavIndex = index;
+    });
+    
+    switch (index) {
+      case 0: // Home
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1: // Tickets
+        // Navigate to tickets screen
+        break;
+      case 2: // Playground - current screen
+        Navigator.pushReplacementNamed(context, '/game-selection');
+        break;
+      case 3: // Leaderboard
+        // Navigate to leaderboard screen
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -195,7 +231,7 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
         children: [
           Column(
             children: [
-              AppHeader(),
+              AppHeader(location: _currentLocation),
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -317,6 +353,10 @@ class _LiveGametype1WidgetState extends State<LiveGametype1Widget> {
               ),
             ),
         ],
+      ),
+      bottomNavigationBar: BottomNavbarWidget(
+        currentIndex: _currentNavIndex,
+        onTap: _onNavTap,
       ),
     );
   }

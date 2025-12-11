@@ -7,6 +7,7 @@ class BackgroundMusicService {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isPlaying = false;
+  bool _wasPausedBySystem = false;
 
   Future<void> play() async {
     if (_isPlaying) return;
@@ -18,6 +19,20 @@ class BackgroundMusicService {
   Future<void> stop() async {
     await _audioPlayer.stop();
     _isPlaying = false;
+  }
+
+  Future<void> pause() async {
+    if (_isPlaying) {
+      await _audioPlayer.pause();
+      _wasPausedBySystem = true;
+    }
+  }
+
+  Future<void> resume() async {
+    if (_wasPausedBySystem) {
+      await _audioPlayer.resume();
+      _wasPausedBySystem = false;
+    }
   }
 
   void dispose() {

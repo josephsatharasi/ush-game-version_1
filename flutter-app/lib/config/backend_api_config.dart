@@ -1,11 +1,26 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
-class BackendApiConfig {
-  static const String productionUrl = 'https://ush-game-version-1.onrender.com';
-  static const String localUrl = 'http://192.168.0.22:3001';
+import 'environment_config.dart';
+class EnvironmentConfig {
+  static const bool _isLocal = bool.fromEnvironment('USE_LOCAL', defaultValue: false);
   
-  static const String baseUrl = '$productionUrl/api';
+  static const String _localUrl = 'http://192.168.0.22:5000';
+  static const String _liveUrl = 'https://ush-game-version-1.onrender.com';
+  
+  static String get baseUrl => _isLocal ? _localUrl : _liveUrl;
+  static String get environment => _isLocal ? 'local' : 'live';
+  
+  static void printConfig() {
+    print('🔧 Flutter Environment: $environment');
+    print('🌐 API Base URL: $baseUrl');
+  }
+}
+class BackendApiConfig {
+  static String get baseUrl => '${EnvironmentConfig.baseUrl}/api';
+  
+  static void _logRequest(String endpoint) {
+    print('🌐 API Request: ${EnvironmentConfig.environment.toUpperCase()} - $endpoint');
+  }
   
   static Future<Map<String, dynamic>> register({
     required String username,
@@ -13,6 +28,7 @@ class BackendApiConfig {
     required String password,
     String role = 'user',
   }) async {
+    _logRequest('auth/register');
     final response = await http.post(
       Uri.parse('$baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
@@ -55,6 +71,7 @@ class BackendApiConfig {
     required String username,
     required String password,
   }) async {
+    _logRequest('auth/login');
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
@@ -84,6 +101,7 @@ class BackendApiConfig {
   }
 
   static Future<Map<String, dynamic>> getLiveGame() async {
+    _logRequest('game/live');
     final response = await http.get(
       Uri.parse('$baseUrl/game/live'),
       headers: {'Content-Type': 'application/json'},
@@ -104,6 +122,7 @@ class BackendApiConfig {
     String? weekDay,
     String? timeSlot,
   }) async {
+    _logRequest('game/book');
     final body = <String, dynamic>{'gameId': gameId};
     if (ticketCount != null) body['ticketCount'] = ticketCount;
     if (scheduledDate != null) body['scheduledDate'] = scheduledDate;
@@ -334,6 +353,24 @@ class BackendApiConfig {
       return jsonDecode(response.body);
     } else {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get announced numbers');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getScratchCoupon({
+    required String token,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/coupons/scratch'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get scratch coupon');
     }
   }
 }

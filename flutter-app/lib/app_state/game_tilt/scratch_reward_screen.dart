@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ush_app/widgets/loction_header.dart';
 import '../../services/background_music_service.dart';
+import '../../config/backend_api_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScratchRewardScreen extends StatefulWidget {
   const ScratchRewardScreen({super.key});
@@ -21,13 +24,17 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
   bool _isScratched = false;
   bool _showCongratulations = false;
   bool _showBetterLuck = false;
-  final String _rewardAmount = "₹500";
-  final String _rewardCode = "KANUSH35";
+  bool _isLoading = true;
+  Map<String, dynamic>? _couponData;
+  String _rewardAmount = "";
+  String _rewardCode = "";
+  bool _hasWon = false;
 
   @override
   void initState() {
     super.initState();
     BackgroundMusicService().play();
+    _fetchCouponData();
     _animationController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: 800),
@@ -73,6 +80,44 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
     _animationController.forward();
   }
 
+  Future<void> _fetchCouponData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token != null) {
+        final response = await BackendApiConfig.getScratchCoupon(token: token);
+        if (mounted) {
+          setState(() {
+            _couponData = response['coupon'];
+            _rewardAmount = _couponData?['amount'] ?? '₹0';
+            _rewardCode = _couponData?['code'] ?? 'NO_CODE';
+            _hasWon = _couponData?['hasWon'] ?? false;
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Mock data for testing
+        setState(() {
+          _rewardAmount = '₹500';
+          _rewardCode = 'KANUSH35';
+          _hasWon = true;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // Fallback to mock data
+      if (mounted) {
+        setState(() {
+          _rewardAmount = '₹500';
+          _rewardCode = 'KANUSH35';
+          _hasWon = true;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -81,33 +126,39 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
   }
 
   void _onScratchCardTapped() {
-    if (!_isScratched) {
+    if (!_isScratched && !_isLoading) {
       setState(() {
         _isScratched = true;
       });
       _rewardAnimationController.forward();
-    } else {
-      _rewardAnimationController.reverse().then((_) {
+      
+      // Show result after animation
+      Future.delayed(Duration(milliseconds: 800), () {
         if (mounted) {
           setState(() {
-            _isScratched = false;
+            if (_hasWon) {
+              _showCongratulations = true;
+            } else {
+              _showBetterLuck = true;
+            }
           });
-          Future.delayed(Duration(seconds: 2), () {
+          
+          // Auto navigate after showing result
+          Future.delayed(Duration(seconds: 3), () {
             if (mounted) {
-              setState(() {
-                _showCongratulations = true;
-              });
-              Future.delayed(Duration(seconds: 3), () {
-                if (mounted) {
-                  BackgroundMusicService().play();
-                  Navigator.pushReplacementNamed(context, '/home');
-                }
-              });
+              Navigator.pushReplacementNamed(context, '/home');
             }
           });
         }
       });
     }
+  }
+
+  void _copyCouponCode() {
+    Clipboard.setData(ClipboardData(text: _rewardCode));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Coupon code copied!')),
+    );
   }
 
   @override
@@ -131,12 +182,20 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                         SizedBox(height: 40),
-                        // Scratch Card Area or Reward Card
-                        _isScratched ? _buildRewardCard() : _buildScratchCard(),
+                        // Loading or Scratch Card Area or Reward Card
+                        _isLoading 
+                          ? _buildLoadingCard()
+                          : _isScratched 
+                            ? _buildRewardCard() 
+                            : _buildScratchCard(),
                         SizedBox(height: 20),
                         // Text based on state
                         Text(
-                          _isScratched ? "Yay! You have won $_rewardAmount" : "Scratch to get reward",
+                          _isLoading 
+                            ? "Loading your reward..."
+                            : _isScratched 
+                              ? (_hasWon ? "Yay! You have won $_rewardAmount" : "Better luck next time!")
+                              : "Scratch to get reward",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
@@ -144,7 +203,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        if (_isScratched) ...[
+                        if (_isScratched && _hasWon) ...[
                           SizedBox(height: 10),
                           Text(
                             "Use the code in your KANMA wallet and this money will be added to your KANMA wallet.",
@@ -224,7 +283,43 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
             ],
           ),
           if (_showCongratulations) _buildCongratulationsScreen(),
+          if (_showBetterLuck) _buildBetterLuckScreen(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingCard() {
+    return Container(
+      width: double.infinity,
+      height: 250,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Color(0xFF1E3A8A)),
+            SizedBox(height: 16),
+            Text(
+              'Preparing your reward...',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -346,9 +441,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
                     ),
                     SizedBox(width: 10),
                     GestureDetector(
-                      onTap: () {
-                        // Copy code to clipboard
-                      },
+                      onTap: _copyCouponCode,
                       child: Icon(
                         Icons.copy,
                         size: 20,

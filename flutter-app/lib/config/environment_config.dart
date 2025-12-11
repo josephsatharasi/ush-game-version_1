@@ -1,0 +1,14 @@
+class EnvironmentConfig {
+  static const bool _isLocal = bool.fromEnvironment('USE_LOCAL', defaultValue: true);
+  
+  static const String _localUrl = 'http://192.168.0.22:3001';
+  static const String _liveUrl = 'http://localhost:5001';
+  
+  static String get baseUrl => _isLocal ? _localUrl : _liveUrl;
+  static String get environment => _isLocal ? 'local' : 'live';
+  
+  static void printConfig() {
+    print('🔧 Flutter Environment: $environment');
+    print('🌐 API Base URL: $baseUrl');
+  }
+}

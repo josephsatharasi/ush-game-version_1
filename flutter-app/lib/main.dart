@@ -18,14 +18,36 @@ import 'app_state/game_tilt/buttons/second_button/second_button_widget.dart';
 import 'app_state/game_tilt/buttons/third_button/third_button_widget.dart';
 import 'app_state/game_tilt/buttons/jaldhi/jaldhi_widget.dart';
 import 'app_state/game_tilt/buttons/housi/housi_widget.dart';
+import 'services/app_lifecycle_service.dart';
+import 'config/environment_config.dart';
 
 
 void main() {
+  EnvironmentConfig.printConfig();
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final AppLifecycleService _lifecycleService = AppLifecycleService();
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleService.initialize();
+  }
+
+  @override
+  void dispose() {
+    _lifecycleService.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

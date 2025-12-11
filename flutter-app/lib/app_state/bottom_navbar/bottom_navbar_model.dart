@@ -15,6 +15,6 @@ class BottomNavbarModel {
     BottomNavItem(label: 'Home', iconPath: 'home', index: 0),
     BottomNavItem(label: 'Tickets', iconPath: 'tickets', index: 1),
     BottomNavItem(label: 'Play Ground', iconPath: 'playground', index: 2),
-    BottomNavItem(label: 'Lead board', iconPath: 'leaderboard', index: 3),
+    BottomNavItem(label: 'Lead board', iconPath: 'leardboard', index: 3),
   ];
 }

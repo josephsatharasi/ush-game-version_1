@@ -9,6 +9,7 @@ class GameService {
 
   Timer? _statusTimer;
   final _gameStatusController = StreamController<Map<String, dynamic>>.broadcast();
+  bool _isPaused = false;
   
   Stream<Map<String, dynamic>> get gameStatusStream => _gameStatusController.stream;
 
@@ -37,6 +38,19 @@ class GameService {
 
   void stopPolling() {
     _statusTimer?.cancel();
+    _isPaused = false;
+  }
+
+  void pausePolling() {
+    _statusTimer?.cancel();
+    _isPaused = true;
+  }
+
+  void resumePolling() {
+    if (_isPaused) {
+      _isPaused = false;
+      startPolling();
+    }
   }
 
   void dispose() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/loction_header.dart' as widgets show AppHeader;
 import '../config/backend_api_config.dart';
+import 'bottom_navbar/bottom_navbar_widget.dart';
 
 class GameSelectionScreen extends StatefulWidget {
   const GameSelectionScreen({super.key});
@@ -13,6 +14,7 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
   bool _showMenu = false;
   bool _isLoading = true;
   List<Map<String, dynamic>> _games = [];
+  int _currentNavIndex = 2; // Playground tab
 
   @override
   void initState() {
@@ -38,6 +40,26 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  void _onNavTap(int index) {
+    setState(() {
+      _currentNavIndex = index;
+    });
+    
+    switch (index) {
+      case 0: // Home
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+      case 1: // Tickets
+        // Navigate to tickets screen
+        break;
+      case 2: // Playground - current screen
+        break;
+      case 3: // Leaderboard
+        // Navigate to leaderboard screen
+        break;
     }
   }
 
@@ -115,6 +137,10 @@ class _GameSelectionScreenState extends State<GameSelectionScreen> {
             ],
           ),
         ],
+      ),
+      bottomNavigationBar: BottomNavbarWidget(
+        currentIndex: _currentNavIndex,
+        onTap: _onNavTap,
       ),
     );
   }

@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
 const cors = require('cors');
-const dotenv = require('dotenv');
+const config = require('./config/environment');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const unifiedAuthRoutes = require('./routes/unified-auth');
@@ -13,7 +13,6 @@ const GameEngine = require('./services/gameEngine');
 const { scheduleCleanup } = require('./jobs/cleanupScheduler');
 const { scheduleGameStarter } = require('./jobs/gameScheduler');
 
-dotenv.config();
 connectDB().then(async () => {
   // Drop old unique index on startup
   try {
@@ -86,9 +85,9 @@ app.set('io', io);
 // Start game auto-scheduler
 scheduleGameStarter(gameEngine);
 
-const PORT = process.env.PORT || 5000;
+const PORT = config.PORT || 5000;
 const HOST = process.env.IPADDRESS || '0.0.0.0';
 
 server.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
+  console.log(`🚀 Server running on ${HOST}:${PORT} (${config.ENVIRONMENT} mode)`);
 });

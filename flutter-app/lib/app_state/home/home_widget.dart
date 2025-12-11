@@ -5,11 +5,13 @@ import '../bottom_navbar/bottom_navbar_widget.dart';
 import '../../widgets/loction_header.dart';
 import '../playground/game_starts_countdown.dart';
 import '../../services/background_music_service.dart';
+import '../../services/location_service.dart';
 import '../../config/backend_api_config.dart';
 import 'settings/settings_widget.dart';
 import 'history/history_widget.dart';
 import 'coupons/coupons_widget.dart';
 import '../game_selection_screen.dart';
+import 'home_model.dart';
 // import 'adds_flow/card_review_screen.dart';
 
 class HomeWidget extends StatefulWidget {
@@ -32,6 +34,8 @@ class _HomeWidgetState extends State<HomeWidget> {
   ];
   String _ticketNumber = '';
   String _generatedNumbers = '';
+  final HomeModel _model = HomeModel();
+  final LocationService _locationService = LocationService();
 
   @override
   void initState() {
@@ -39,7 +43,17 @@ class _HomeWidgetState extends State<HomeWidget> {
     BackgroundMusicService().play();
     _loadTicketNumber();
     _checkAndResumeGame();
+    _fetchCurrentLocation();
     Future.delayed(Duration(seconds: 3), _autoScroll);
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    await _locationService.getCurrentLocation();
+    if (mounted) {
+      setState(() {
+        _model.updateLocation(_locationService.currentAddress);
+      });
+    }
   }
 
   Future<void> _loadTicketNumber() async {
@@ -179,6 +193,7 @@ class _HomeWidgetState extends State<HomeWidget> {
                   children: [
                     AppHeader(
                       onMenuTap: () => setState(() => _showMenu = !_showMenu),
+                      location: _model.currentLocation,
                     ),
                     Expanded(
                       child: Column(
@@ -459,18 +474,22 @@ class _HomeWidgetState extends State<HomeWidget> {
               currentIndex: _currentIndex,
               onTap: (index) {
                 setState(() => _currentIndex = index);
-                if (index == 1) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Delivery status coming soon!')),
-                  );
-                } else if (index == 2) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Playground coming soon!')),
-                  );
-                } else if (index == 3) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Leaderboard coming soon!')),
-                  );
+                switch (index) {
+                  case 0: // Home - current screen
+                    break;
+                  case 1: // Tickets
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Tickets coming soon!')),
+                    );
+                    break;
+                  case 2: // Playground
+                    Navigator.pushNamed(context, '/game-selection');
+                    break;
+                  case 3: // Leaderboard
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Leaderboard coming soon!')),
+                    );
+                    break;
                 }
               },
             ),

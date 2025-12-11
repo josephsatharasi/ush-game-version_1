@@ -14,6 +14,8 @@ class BottomNavbarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final itemWidth = screenWidth / BottomNavbarModel.items.length;
     
     return Container(
       decoration: BoxDecoration(
@@ -29,6 +31,31 @@ class BottomNavbarWidget extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Curved slider indicator
+          Container(
+            height: 4,
+            child: Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  left: currentIndex * itemWidth + (itemWidth - 40) / 2 - 8,
+                  top: 0,
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Color(0xFF1E3A8A),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Container(
             height: 70,
             child: Row(
@@ -40,12 +67,21 @@ class BottomNavbarWidget extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        _getIconData(item.iconPath),
-                        color: isSelected ? Color(0xFF1E3A8A) : Colors.grey,
-                        size: 24,
+                      Image.asset(
+                        'assets/bottom_nav_icons/${item.iconPath}.png',
+                        width: 20,
+                        height: 20,
+                        color: isSelected ? Color(0xFF1E3A8A) : Colors.grey[600],
+                        errorBuilder: (context, error, stackTrace) {
+                          print('Failed to load icon: ${item.iconPath}.png - Error: $error');
+                          return Icon(
+                            _getIconData(item.iconPath),
+                            color: isSelected ? Color(0xFF1E3A8A) : Colors.grey,
+                            size: 20,
+                          );
+                        },
                       ),
-                      SizedBox(height: 4),
+                      SizedBox(height: 2),
                       Text(
                         item.label,
                         style: TextStyle(
@@ -75,7 +111,7 @@ class BottomNavbarWidget extends StatelessWidget {
         return Icons.confirmation_number;
       case 'playground':
         return Icons.sports_esports;
-      case 'leaderboard':
+      case 'leardboard':
         return Icons.leaderboard;
       default:
         return Icons.home;
