@@ -79,45 +79,16 @@ router.post('/games/:gameId/announce', requireRole(['admin']), async (req, res) 
       return res.status(400).json({ message: 'Game is not live' });
     }
 
-    if (game.announcedNumbers.length >= 90) {
-      return res.status(400).json({ message: 'All numbers have been announced' });
-    }
-
-    // Generate random number from remaining numbers
-    const availableNumbers = [];
-    for (let i = 1; i <= 90; i++) {
-      if (!game.announcedNumbers.includes(i)) {
-        availableNumbers.push(i);
-      }
-    }
-
-    const randomIndex = Math.floor(Math.random() * availableNumbers.length);
-    const number = availableNumbers[randomIndex];
-
-    game.announcedNumbers.push(number);
-    game.currentNumber = number;
-    await game.save();
-
-    const io = req.app.get('io');
-    if (io) {
-      io.to(gameId).emit('number:announced', {
-        number,
-        timestamp: new Date(),
-        announcedNumbers: game.announcedNumbers
-      });
-    }
+    if (!gameEngine) gameEngine = req.app.get('gameEngine');
+    gameEngine.startAutoAnnouncement(gameId);
 
     res.json({ 
-      message: 'Number announced successfully',
+      message: 'Auto-announcement started. Numbers will be announced every 5 seconds until all 90 numbers are announced or housie is won.',
       game: {
         announcedNumbers: game.announcedNumbers,
         currentNumber: game.currentNumber,
         remaining: 90 - game.announcedNumbers.length,
-        firstLineWinner: game.firstLineWinner,
-        secondLineWinner: game.secondLineWinner,
-        thirdLineWinner: game.thirdLineWinner,
-        jaldiWinner: game.jaldiWinner,
-        housieWinner: game.housieWinner
+        status: game.status
       }
     });
   } catch (error) {
