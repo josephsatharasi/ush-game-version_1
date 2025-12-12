@@ -17,6 +17,8 @@ const liveGameSchema = new mongoose.Schema({
   scheduledTime: { type: Date, required: true },
   startTime: { type: Date },
   endTime: { type: Date },
+  generatedNumbers: [{ type: Number }],
+  currentIndex: { type: Number, default: 0 },
   announcedNumbers: [{ type: Number }],
   currentNumber: { type: Number },
   firstLineWinner: winnerSchema,

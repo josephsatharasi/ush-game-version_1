@@ -115,12 +115,21 @@ router.post('/games/create', requireRole(['admin']), async (req, res) => {
       return res.status(400).json({ message: 'Game code already exists' });
     }
 
+    // Generate shuffled 1-90 numbers
+    const numbers = Array.from({ length: 90 }, (_, i) => i + 1);
+    for (let i = numbers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+    }
+
     const game = new LiveGame({
       gameCode,
       scheduledTime: new Date(scheduledTime),
       totalSlots: totalSlots || 100,
       bookedSlots: 0,
-      status: 'SCHEDULED'
+      status: 'SCHEDULED',
+      generatedNumbers: numbers,
+      currentIndex: 0
     });
 
     await game.save();

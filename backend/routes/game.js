@@ -335,22 +335,14 @@ router.post('/:gameId/next-number', auth, async (req, res) => {
       return res.status(400).json({ message: 'Game is not live' });
     }
 
-    if (game.announcedNumbers.length >= 90) {
+    if (game.currentIndex >= 90) {
       return res.status(400).json({ message: 'All numbers announced' });
     }
 
-    const availableNumbers = [];
-    for (let i = 1; i <= 90; i++) {
-      if (!game.announcedNumbers.includes(i)) {
-        availableNumbers.push(i);
-      }
-    }
-
-    const randomIndex = Math.floor(Math.random() * availableNumbers.length);
-    const nextNumber = availableNumbers[randomIndex];
-
+    const nextNumber = game.generatedNumbers[game.currentIndex];
     game.announcedNumbers.push(nextNumber);
     game.currentNumber = nextNumber;
+    game.currentIndex += 1;
     await game.save();
 
     const io = req.app.get('io');

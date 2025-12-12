@@ -10,6 +10,17 @@ class GameEngine {
     const game = await LiveGame.findById(gameId);
     if (!game) throw new Error('Game not found');
 
+    // Generate shuffled 1-90 numbers if not already generated
+    if (!game.generatedNumbers || game.generatedNumbers.length === 0) {
+      const numbers = Array.from({ length: 90 }, (_, i) => i + 1);
+      for (let i = numbers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+      }
+      game.generatedNumbers = numbers;
+      game.currentIndex = 0;
+    }
+
     game.status = 'LIVE';
     game.startTime = new Date();
     await game.save();
@@ -31,32 +42,17 @@ class GameEngine {
           return;
         }
 
-        if (game.housieWinner || game.announcedNumbers.length >= 90) {
+        if (game.housieWinner || game.currentIndex >= 90) {
           clearInterval(interval);
           this.activeGames.delete(gameId);
           await this.endGame(gameId);
           return;
         }
 
-        const availableNumbers = [];
-        for (let i = 1; i <= 90; i++) {
-          if (!game.announcedNumbers.includes(i)) {
-            availableNumbers.push(i);
-          }
-        }
-
-        if (availableNumbers.length === 0) {
-          clearInterval(interval);
-          this.activeGames.delete(gameId);
-          await this.endGame(gameId);
-          return;
-        }
-
-        const randomIndex = Math.floor(Math.random() * availableNumbers.length);
-        const number = availableNumbers[randomIndex];
-
+        const number = game.generatedNumbers[game.currentIndex];
         game.announcedNumbers.push(number);
         game.currentNumber = number;
+        game.currentIndex += 1;
         await game.save();
 
         this.io.to(gameId).emit('number:announced', {
