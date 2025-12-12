@@ -12,6 +12,7 @@ class GameNumberService {
   final Set<int> _markedNumbers = {};
   final StreamController<int> _numberStreamController = StreamController<int>.broadcast();
   final StreamController<Set<int>> _markedNumbersController = StreamController<Set<int>>.broadcast();
+  int _currentNumber = 0;
   Timer? _animationTimer;
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts();
@@ -21,6 +22,14 @@ class GameNumberService {
   Stream<Set<int>> get markedNumbersStream => _markedNumbersController.stream;
   List<int> get announcedNumbers => List.unmodifiable(_announcedNumbers);
   Set<int> get markedNumbers => Set.unmodifiable(_markedNumbers);
+  int get currentNumber => _currentNumber;
+  
+  void updateCurrentNumber(int number) {
+    if (_currentNumber != number && number > 0) {
+      _currentNumber = number;
+      _numberStreamController.add(number);
+    }
+  }
 
   void markNumber(int number) {
     _markedNumbers.add(number);

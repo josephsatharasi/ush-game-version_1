@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'game_tilt_model.dart';
 import '../../widgets/loction_header.dart';
 import '../../config/backend_api_config.dart';
+import '../../services/game_number_service.dart';
 
 class DottedBackgroundPainter extends CustomPainter {
   @override
@@ -85,7 +86,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   void dispose() {
     debugPrint('🎮 GAME END: GameTiltWidget dispose called');
     WidgetsBinding.instance.removeObserver(this);
-    _pauseAllActivities();
+    _animationTimer?.cancel();
+    _numberFetchTimer?.cancel();
     _coinAnimationController.dispose();
     _audioPlayer.dispose();
     _flutterTts.stop();
@@ -118,11 +120,12 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _pauseAllActivities() {
-    debugPrint('⏸️ PAUSE: Pausing all game activities');
+    debugPrint('⏸️ PAUSE: Pausing visual activities only - keeping polling active');
     _animationTimer?.cancel();
     _animationTimer = null;
-    _numberFetchTimer?.cancel();
-    _numberFetchTimer = null;
+    // Don't cancel number polling - let it continue in background
+    // _numberFetchTimer?.cancel();
+    // _numberFetchTimer = null;
     _audioPlayer.stop();
     _flutterTts.stop();
     if (_coinAnimationController.isAnimating) {
@@ -148,11 +151,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _resumeAllActivities() {
-    debugPrint('▶️ RESUME: Resuming game activities');
+    debugPrint('▶️ RESUME: Resuming visual activities');
     if (mounted && !_isAppInBackground) {
       _startContinuousAnimation();
-      _startNumberPolling();
-      debugPrint('▶️ RESUME: Activities resumed successfully');
+      // Polling never stopped, no need to restart
+      debugPrint('▶️ RESUME: Visual activities resumed successfully');
     } else {
       debugPrint('▶️ RESUME: Cannot resume - mounted: $mounted, background: $_isAppInBackground');
     }
@@ -233,15 +236,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       debugPrint('🔄 POLLING: Already running, skipping start');
       return;
     }
-    if (_isAppInBackground) {
-      debugPrint('🔄 POLLING: App in background, skipping start');
-      return;
-    }
     
     debugPrint('🔄 POLLING: Starting backend polling every 1 second');
     _numberFetchTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
-      if (!mounted || _isAppInBackground) {
-        debugPrint('🔄 POLLING: Stopping - mounted: $mounted, background: $_isAppInBackground');
+      if (!mounted) {
+        debugPrint('🔄 POLLING: Stopping - widget disposed');
         timer.cancel();
         return;
       }
@@ -252,19 +251,32 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         final gameId = prefs.getString('gameId');
         
         if (token != null && gameId != null) {
-          final result = await BackendApiConfig.getAnnouncedNumbers(
+          // Get game status first to check if game is LIVE
+          final statusResult = await BackendApiConfig.getGameStatus(
             token: token,
             gameId: gameId,
           );
           
-          if (!mounted || _isAppInBackground) return;
+          if (!mounted) return;
           
-          final newNumber = result['currentNumber'] ?? 0;
-          final announcedList = (result['announcedNumbers'] as List?)?.cast<int>() ?? [];
-          final remaining = result['remaining'] ?? 0;
+          final gameStatus = statusResult['status'] ?? 'WAITING';
+          final newNumber = statusResult['currentNumber'] ?? 0;
+          final announcedList = (statusResult['announcedNumbers'] as List?)?.cast<int>() ?? [];
+          final remaining = 90 - announcedList.length;
           
-          debugPrint('🔄 BACKEND: Current: $newNumber, Count: ${announcedList.length}, Remaining: $remaining');
+          debugPrint('🔄 BACKEND: Status: $gameStatus, Current: $newNumber, Count: ${announcedList.length}, Remaining: $remaining');
           debugPrint('🔢 BACKEND: Numbers: $announcedList');
+          
+          // Update model with game status
+          _model.updateFromGameStatus(statusResult);
+          
+          // Stop polling if game is not LIVE
+          if (gameStatus != 'LIVE') {
+            debugPrint('⏹️ POLLING: Game status is $gameStatus - stopping announcements');
+            _numberFetchTimer?.cancel();
+            _numberFetchTimer = null;
+            return;
+          }
           
           // Check for new number announcement
           if (newNumber > 0 && newNumber != _currentNumber) {
@@ -281,7 +293,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                 _currentNumber = newNumber;
                 _announcedNumbers = announcedList;
               });
-              _model.updateFromAnnouncedNumbers(result);
+              // Broadcast to all screens via GameNumberService
+              GameNumberService().updateCurrentNumber(newNumber);
               _processNumber(newNumber);
             }
           } else if (announcedList.length != _announcedNumbers.length) {
@@ -289,13 +302,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             setState(() {
               _announcedNumbers = announcedList;
             });
-            _model.updateFromAnnouncedNumbers(result);
           }
-        } else {
-          debugPrint('❌ BACKEND: Missing credentials for polling');
         }
       } catch (e) {
         debugPrint('❌ BACKEND: Polling error - $e');
+        // Continue polling even on error
       }
     });
   }
@@ -322,39 +333,47 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _showCoinPop() {
-    if (_isAppInBackground || _currentNumber == 0 || !mounted || _showCoin) {
-      debugPrint('❌ COIN: Cannot show - bg:$_isAppInBackground, num:$_currentNumber, mounted:$mounted, showing:$_showCoin');
+    if (_currentNumber == 0) {
+      debugPrint('❌ COIN: Cannot show - num:$_currentNumber');
       _isProcessingNumber = false;
       return;
     }
     
-    debugPrint('🪙 COIN: Showing backend number: $_currentNumber');
-    debugPrint('🔊 TTS: Speaking number: $_currentNumber');
+    // Skip if already showing coin
+    if (_showCoin) {
+      debugPrint('❌ COIN: Already showing coin');
+      _isProcessingNumber = false;
+      return;
+    }
+    
+    debugPrint('🪙 COIN: Processing backend number: $_currentNumber');
+    debugPrint('🔊 TTS: Speaking number: $_currentNumber (mounted: $mounted)');
     
     try {
-      // Play jar shaking sound
+      // ALWAYS play sound and TTS - even if widget not mounted or on different screen
+      // This allows user to hear announcements while on number board
       _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
         debugPrint('❌ AUDIO: Error - $e');
       });
       
-      // Speak the backend number
       _flutterTts.speak(_currentNumber.toString()).catchError((e) {
         debugPrint('❌ TTS: Error - $e');
       });
       
-      if (mounted && !_isAppInBackground) {
+      // Only show coin visual if widget is mounted (on main screen)
+      if (mounted) {
         setState(() {
           _showCoin = true;
         });
         
         _coinAnimationController.reset();
         _coinAnimationController.forward().then((_) {
-          if (!mounted || _isAppInBackground) return;
+          if (!mounted) return;
           
           Timer(const Duration(milliseconds: 2500), () {
-            if (!mounted || _isAppInBackground) return;
+            if (!mounted) return;
             _coinAnimationController.reverse().then((_) {
-              if (!mounted || _isAppInBackground) return;
+              if (!mounted) return;
               setState(() {
                 _showCoin = false;
               });
@@ -363,7 +382,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               
               // Process next number in queue after a short delay
               Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted && !_isAppInBackground) {
+                if (mounted) {
                   _processNextInQueue();
                 }
               });
@@ -503,7 +522,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                             GestureDetector(
                               onTap: () {
                                 debugPrint('🔢 BUTTON: Numbers button tapped');
-                                debugPrint('🔢 BUTTON: Navigating to fam-playground');
+                                debugPrint('🔢 BUTTON: Navigating to fam-playground - keeping announcements running');
+                                // Don't stop activities - let them run in background
                                 Navigator.pushNamed(context, '/fam-playground');
                               },
                               child: Container(

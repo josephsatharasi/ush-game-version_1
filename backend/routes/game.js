@@ -441,11 +441,15 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     const { winType, cardNumber } = req.body;
     const userId = req.userId;
 
-    console.log(`\n🏆 CLAIM-WIN ENDPOINT CALLED`);
+    console.log(`\n🏆🏆🏆 CLAIM-WIN ENDPOINT CALLED 🏆🏆🏆`);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
     console.log(`Game ID: ${gameId}`);
     console.log(`User ID: ${userId}`);
     console.log(`Win Type: ${winType}`);
     console.log(`Card Number: ${cardNumber}`);
+    console.log(`User-Agent: ${req.headers['user-agent']}`);
+    console.log(`IP: ${req.ip}`);
+    console.trace('Call stack:');
 
     if (!cardNumber) {
       return res.status(400).json({ valid: false, message: 'Card number is required' });
