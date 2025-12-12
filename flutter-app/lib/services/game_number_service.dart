@@ -48,11 +48,10 @@ class GameNumberService {
   }
 
   void _announceNextNumber() {
-    _audioPlayer.play(AssetSource('audios/jar_shaking.mp3'));
+    // Removed audio and TTS - sounds should only play from main game widget
+    // when backend announces numbers, not from this service
     
     _animationTimer = Timer(const Duration(milliseconds: 4200), () {
-      _audioPlayer.stop();
-      
       int newNumber;
       do {
         newNumber = Random().nextInt(90) + 1;
@@ -60,7 +59,6 @@ class GameNumberService {
       
       _announcedNumbers.add(newNumber);
       _numberStreamController.add(newNumber);
-      _flutterTts.speak(newNumber.toString());
       
       Timer(const Duration(seconds: 4), () {
         if (_isRunning) {
@@ -73,7 +71,6 @@ class GameNumberService {
   void stopGame() {
     _isRunning = false;
     _animationTimer?.cancel();
-    _audioPlayer.stop();
   }
 
   void resetGame() {

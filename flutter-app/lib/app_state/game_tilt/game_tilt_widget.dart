@@ -49,6 +49,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   int _currentNumber = 0;
   List<int> _announcedNumbers = [];
   bool _isAppInBackground = false;
+  final List<int> _numberQueue = [];
+  bool _isProcessingNumber = false;
 
   @override
   void initState() {
@@ -187,12 +189,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           
           // Show coin animation for current number if valid
           if (_currentNumber > 0) {
-            debugPrint('🏺 JAR: Starting tilt animation, then showing coin for: $_currentNumber');
-            Future.delayed(const Duration(milliseconds: 2400), () {
-              if (mounted) {
-                _showCoinPop();
-              }
-            });
+            debugPrint('🏺 JAR: Initial load - showing coin for: $_currentNumber');
+            _processNumber(_currentNumber);
           }
         }
       } else {
@@ -240,8 +238,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       return;
     }
     
-    debugPrint('🔄 POLLING: Starting backend polling every 2 seconds');
-    _numberFetchTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+    debugPrint('🔄 POLLING: Starting backend polling every 1 second');
+    _numberFetchTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (!mounted || _isAppInBackground) {
         debugPrint('🔄 POLLING: Stopping - mounted: $mounted, background: $_isAppInBackground');
         timer.cancel();
@@ -271,12 +269,21 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           // Check for new number announcement
           if (newNumber > 0 && newNumber != _currentNumber) {
             debugPrint('🎆 NEW NUMBER: $newNumber (was $_currentNumber)');
-            setState(() {
-              _currentNumber = newNumber;
-              _announcedNumbers = announcedList;
-            });
-            _model.updateFromAnnouncedNumbers(result);
-            _showCoinPop();
+            
+            // Add to queue if currently processing another number
+            if (_isProcessingNumber) {
+              if (!_numberQueue.contains(newNumber)) {
+                _numberQueue.add(newNumber);
+                debugPrint('📥 QUEUE: Added $newNumber to queue (size: ${_numberQueue.length})');
+              }
+            } else {
+              setState(() {
+                _currentNumber = newNumber;
+                _announcedNumbers = announcedList;
+              });
+              _model.updateFromAnnouncedNumbers(result);
+              _processNumber(newNumber);
+            }
           } else if (announcedList.length != _announcedNumbers.length) {
             debugPrint('🔄 BACKEND: List updated: ${announcedList.length} numbers');
             setState(() {
@@ -293,9 +300,31 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     });
   }
 
+  void _processNumber(int number) {
+    _isProcessingNumber = true;
+    _showCoinPop();
+  }
+
+  void _processNextInQueue() {
+    if (_numberQueue.isEmpty) {
+      _isProcessingNumber = false;
+      debugPrint('📤 QUEUE: Empty, ready for next number');
+      return;
+    }
+    
+    final nextNumber = _numberQueue.removeAt(0);
+    debugPrint('📤 QUEUE: Processing next number: $nextNumber (remaining: ${_numberQueue.length})');
+    
+    setState(() {
+      _currentNumber = nextNumber;
+    });
+    _processNumber(nextNumber);
+  }
+
   void _showCoinPop() {
     if (_isAppInBackground || _currentNumber == 0 || !mounted || _showCoin) {
       debugPrint('❌ COIN: Cannot show - bg:$_isAppInBackground, num:$_currentNumber, mounted:$mounted, showing:$_showCoin');
+      _isProcessingNumber = false;
       return;
     }
     
@@ -322,7 +351,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         _coinAnimationController.forward().then((_) {
           if (!mounted || _isAppInBackground) return;
           
-          Timer(const Duration(milliseconds: 4000), () {
+          Timer(const Duration(milliseconds: 2500), () {
             if (!mounted || _isAppInBackground) return;
             _coinAnimationController.reverse().then((_) {
               if (!mounted || _isAppInBackground) return;
@@ -331,12 +360,20 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               });
               _audioPlayer.stop();
               debugPrint('🪙 COIN: Animation completed for $_currentNumber');
+              
+              // Process next number in queue after a short delay
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted && !_isAppInBackground) {
+                  _processNextInQueue();
+                }
+              });
             });
           });
         });
       }
     } catch (e) {
       debugPrint('❌ COIN: Critical error - $e');
+      _isProcessingNumber = false;
       if (mounted) {
         setState(() {
           _showCoin = false;

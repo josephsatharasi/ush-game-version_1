@@ -56,8 +56,10 @@ router.get('/stats', requireRole(['admin']), async (req, res) => {
 
 router.post('/games/:gameId/start', requireRole(['admin']), async (req, res) => {
   try {
+    console.log(`\n🚀 START GAME: Request received for game ${req.params.gameId}`);
     if (!gameEngine) gameEngine = req.app.get('gameEngine');
     await gameEngine.startGame(req.params.gameId);
+    console.log(`✅ START GAME: Game ${req.params.gameId} started successfully\n`);
     res.json({ message: 'Game started and auto-announcement activated' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -109,9 +111,14 @@ router.post('/games/:gameId/end', requireRole(['admin']), async (req, res) => {
 router.post('/games/create', requireRole(['admin']), async (req, res) => {
   try {
     const { gameCode, scheduledTime, totalSlots } = req.body;
+    console.log(`\n🎮 CREATE GAME: Request received`);
+    console.log(`📝 Game Code: ${gameCode}`);
+    console.log(`⏰ Scheduled Time: ${scheduledTime}`);
+    console.log(`🎫 Total Slots: ${totalSlots || 100}`);
     
     const existingGame = await LiveGame.findOne({ gameCode });
     if (existingGame) {
+      console.log(`❌ CREATE GAME: Game code ${gameCode} already exists`);
       return res.status(400).json({ message: 'Game code already exists' });
     }
 
@@ -140,6 +147,8 @@ router.post('/games/create', requireRole(['admin']), async (req, res) => {
     });
 
     await game.save();
+    console.log(`✅ CREATE GAME: Game ${gameCode} created successfully with ID: ${game._id}`);
+    console.log(`📊 CREATE GAME: Status=${game.status}, Numbers=${game.generatedNumbers.length}\n`);
 
     res.json({ 
       message: `Game created successfully with ${totalSlots || 100} slots`, 
@@ -173,6 +182,11 @@ router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req
   try {
     const { gameId } = req.params;
     const { maxTicketsPerUser, availableTickets, availableTimeSlots, scheduledDate } = req.body;
+    console.log(`\n⚙️ CONFIGURE SLOTS: Game ${gameId}`);
+    console.log(`👥 Max Tickets Per User: ${maxTicketsPerUser}`);
+    console.log(`🎫 Available Tickets: ${JSON.stringify(availableTickets)}`);
+    console.log(`⏰ Time Slots: ${JSON.stringify(availableTimeSlots)}`);
+    console.log(`📅 Scheduled Date: ${scheduledDate}`);
 
     const game = await LiveGame.findById(gameId);
     if (!game) {
@@ -206,6 +220,7 @@ router.post('/games/:gameId/configure-slots', requireRole(['admin']), async (req
     });
 
     await config.save();
+    console.log(`✅ CONFIGURE SLOTS: Configuration saved for game ${gameId}\n`);
     res.json({ message: 'Game slots configured successfully', config });
   } catch (error) {
     res.status(500).json({ message: error.message });

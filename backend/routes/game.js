@@ -57,9 +57,16 @@ router.post('/book', auth, async (req, res) => {
   try {
     const { gameId, ticketCount, scheduledDate, timeSlot } = req.body;
     const userId = req.userId;
+    console.log(`\n🎫 BOOK TICKET: Request received`);
+    console.log(`👤 User ID: ${userId}`);
+    console.log(`🎮 Game ID: ${gameId}`);
+    console.log(`🎫 Ticket Count: ${ticketCount}`);
+    console.log(`📅 Scheduled Date: ${scheduledDate}`);
+    console.log(`⏰ Time Slot: ${timeSlot}`);
 
     // Validate input
     if (!ticketCount || ticketCount < 1) {
+      console.log(`❌ BOOK TICKET: Invalid ticket count`);
       return res.status(400).json({ message: 'Ticket count must be at least 1' });
     }
 
@@ -77,8 +84,10 @@ router.post('/book', auth, async (req, res) => {
 
     const game = await LiveGame.findOne({ $or: [{ _id: gameId }, { gameCode: gameId }] });
     if (!game) {
+      console.log(`❌ BOOK TICKET: Game not found`);
       return res.status(404).json({ message: 'Game not found' });
     }
+    console.log(`✅ BOOK TICKET: Game found - ${game.gameCode}, Status: ${game.status}`);
 
     if (game.bookedSlots + ticketCount > game.totalSlots) {
       return res.status(400).json({ message: 'Not enough slots available' });
@@ -134,10 +143,14 @@ router.post('/book', auth, async (req, res) => {
     });
 
     await booking.save();
+    console.log(`✅ BOOK TICKET: Booking saved with ID: ${booking._id}`);
+    console.log(`🎫 BOOK TICKET: Ticket Numbers: ${ticketNumbers.join(', ')}`);
+    console.log(`🃏 BOOK TICKET: Card Numbers: ${cardNumbers.join(', ')}`);
 
     // Update game booked slots
     game.bookedSlots += ticketCount;
     await game.save();
+    console.log(`✅ BOOK TICKET: Game ${game.gameCode} updated - Booked Slots: ${game.bookedSlots}/${game.totalSlots}\n`);
 
     res.json({ 
       success: true,
@@ -156,6 +169,7 @@ router.post('/book', auth, async (req, res) => {
       } 
     });
   } catch (error) {
+    console.log(`❌ BOOK TICKET: Error - ${error.message}\n`);
     if (error.code === 11000) {
       return res.status(400).json({ 
         message: 'You have already booked this time slot for this day. Please choose a different time slot.' 
@@ -427,6 +441,12 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     const { winType, cardNumber } = req.body;
     const userId = req.userId;
 
+    console.log(`\n🏆 CLAIM-WIN ENDPOINT CALLED`);
+    console.log(`Game ID: ${gameId}`);
+    console.log(`User ID: ${userId}`);
+    console.log(`Win Type: ${winType}`);
+    console.log(`Card Number: ${cardNumber}`);
+
     if (!cardNumber) {
       return res.status(400).json({ valid: false, message: 'Card number is required' });
     }
@@ -452,15 +472,20 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
 
     const winnerField = winTypeMap[winType];
     if (winnerField) {
+      console.log(`🎯 Setting ${winnerField} for game ${gameId}`);
       game[winnerField] = {
         userId,
         cardNumber: cardNumber,
         wonAt: new Date(),
         couponCode: null
       };
+      console.log(`💾 Saving game with winner field: ${winnerField}`);
     }
     await game.save();
+    console.log(`✅ Game saved successfully. Status: ${game.status}`);
+    console.log(`🏁 END OF CLAIM-WIN PROCESSING\n`);
 
+    console.log(`📤 Sending success response to client\n`);
     res.json({
       valid: true,
       message: 'Congratulations! You won! Admin will assign your coupon code soon.'
