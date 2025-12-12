@@ -311,6 +311,11 @@ router.get('/:gameId/announced-numbers', auth, async (req, res) => {
       return res.status(404).json({ message: 'Game not found' });
     }
 
+    const gameEngine = req.app.get('gameEngine');
+    if (gameEngine && game.status === 'LIVE') {
+      await gameEngine.ensureAnnouncementRunning(gameId);
+    }
+
     res.json({
       announcedNumbers: game.announcedNumbers,
       currentNumber: game.currentNumber,
@@ -392,6 +397,12 @@ router.get('/:gameId/status', auth, async (req, res) => {
     const game = await LiveGame.findById(gameId);
     if (!game) {
       return res.status(404).json({ message: 'Game not found' });
+    }
+
+    // Ensure announcement is running if game is LIVE
+    const gameEngine = req.app.get('gameEngine');
+    if (gameEngine && game.status === 'LIVE') {
+      await gameEngine.ensureAnnouncementRunning(gameId);
     }
 
     res.json({

@@ -37,6 +37,14 @@ class GameEngine {
     this.startAutoAnnouncement(gameId);
   }
 
+  async ensureAnnouncementRunning(gameId) {
+    const game = await LiveGame.findById(gameId);
+    if (game && game.status === 'LIVE' && !this.activeGames.has(gameId)) {
+      console.log(`🔄 Restarting announcement for game ${gameId} after server restart`);
+      this.startAutoAnnouncement(gameId);
+    }
+  }
+
   startAutoAnnouncement(gameId) {
     if (this.activeGames.has(gameId)) {
       console.log(`⚠️ Game ${gameId}: Auto-announcement already running`);
