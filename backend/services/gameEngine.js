@@ -7,11 +7,13 @@ class GameEngine {
   }
 
   async startGame(gameId) {
+    console.log(`🚀 Starting game ${gameId}`);
     const game = await LiveGame.findById(gameId);
     if (!game) throw new Error('Game not found');
 
     // Generate shuffled 1-90 numbers if not already generated
     if (!game.generatedNumbers || game.generatedNumbers.length === 0) {
+      console.log(`🎲 Generating 90 random numbers for game ${gameId}`);
       const numbers = Array.from({ length: 90 }, (_, i) => i + 1);
       for (let i = numbers.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -19,33 +21,52 @@ class GameEngine {
       }
       game.generatedNumbers = numbers;
       game.currentIndex = 0;
+      console.log(`✅ Generated numbers: ${numbers.slice(0, 5).join(', ')}...`);
+    } else {
+      console.log(`✅ Game ${gameId} already has ${game.generatedNumbers.length} generated numbers`);
     }
 
     game.status = 'LIVE';
     game.startTime = new Date();
     await game.save();
+    console.log(`✅ Game ${gameId} status set to LIVE`);
 
     this.io.to(gameId).emit('game:started', { gameId, startTime: game.startTime });
+    console.log(`📡 Emitted game:started event for game ${gameId}`);
     
     this.startAutoAnnouncement(gameId);
   }
 
   startAutoAnnouncement(gameId) {
-    if (this.activeGames.has(gameId)) return;
+    if (this.activeGames.has(gameId)) {
+      console.log(`⚠️ Game ${gameId}: Auto-announcement already running`);
+      return;
+    }
+
+    console.log(`🎬 Game ${gameId}: Starting auto-announcement`);
 
     const interval = setInterval(async () => {
       try {
         const game = await LiveGame.findById(gameId);
         if (!game || game.status !== 'LIVE') {
+          console.log(`❌ Game ${gameId}: Not found or not LIVE, stopping`);
           clearInterval(interval);
           this.activeGames.delete(gameId);
           return;
         }
 
         if (game.housieWinner || game.currentIndex >= 90) {
+          console.log(`🏁 Game ${gameId}: Game ended (housie winner or all numbers announced)`);
           clearInterval(interval);
           this.activeGames.delete(gameId);
           await this.endGame(gameId);
+          return;
+        }
+
+        if (!game.generatedNumbers || game.generatedNumbers.length === 0) {
+          console.log(`❌ Game ${gameId}: No generated numbers found`);
+          clearInterval(interval);
+          this.activeGames.delete(gameId);
           return;
         }
 
@@ -64,11 +85,12 @@ class GameEngine {
 
         console.log(`🎲 Game ${gameId}: Announced number ${number} (${game.announcedNumbers.length}/90)`);
       } catch (error) {
-        console.error('Auto-announcement error:', error);
+        console.error(`❌ Auto-announcement error for game ${gameId}:`, error);
       }
     }, 5000);
 
     this.activeGames.set(gameId, interval);
+    console.log(`✅ Game ${gameId}: Auto-announcement interval set`);
   }
 
   async endGame(gameId) {

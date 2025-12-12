@@ -58,7 +58,7 @@ router.post('/games/:gameId/start', requireRole(['admin']), async (req, res) => 
   try {
     if (!gameEngine) gameEngine = req.app.get('gameEngine');
     await gameEngine.startGame(req.params.gameId);
-    res.json({ message: 'Game started' });
+    res.json({ message: 'Game started and auto-announcement activated' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
