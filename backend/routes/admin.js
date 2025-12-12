@@ -129,7 +129,14 @@ router.post('/games/create', requireRole(['admin']), async (req, res) => {
       bookedSlots: 0,
       status: 'SCHEDULED',
       generatedNumbers: numbers,
-      currentIndex: 0
+      currentIndex: 0,
+      announcedNumbers: [],
+      currentNumber: null,
+      firstLineWinner: null,
+      secondLineWinner: null,
+      thirdLineWinner: null,
+      jaldiWinner: null,
+      housieWinner: null
     });
 
     await game.save();

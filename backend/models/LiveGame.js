@@ -31,4 +31,20 @@ const liveGameSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Log whenever status changes to COMPLETED
+liveGameSchema.pre('save', function(next) {
+  if (this.isModified('status') && this.status === 'COMPLETED') {
+    console.log(`\n🚨🚨🚨 GAME STATUS CHANGED TO COMPLETED 🚨🚨🚨`);
+    console.log(`Game ID: ${this._id}`);
+    console.log(`Game Code: ${this.gameCode}`);
+    console.log(`Current Index: ${this.currentIndex}`);
+    console.log(`Announced Numbers: ${this.announcedNumbers.length}`);
+    console.log(`Housie Winner: ${this.housieWinner?.userId ? 'YES' : 'NO'}`);
+    console.log(`Stack trace:`);
+    console.trace();
+    console.log(`🚨🚨🚨 END OF STATUS CHANGE LOG 🚨🚨🚨\n`);
+  }
+  next();
+});
+
 module.exports = mongoose.model('LiveGame', liveGameSchema);

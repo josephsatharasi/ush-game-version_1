@@ -75,9 +75,10 @@ class GameEngine {
           return;
         }
 
-        console.log(`🔍 Game ${gameId}: Checking end conditions - HousieWinner=${!!game.housieWinner}, CurrentIndex=${game.currentIndex}`);
-        if (game.housieWinner || game.currentIndex >= 90) {
-          console.log(`🏁 Game ${gameId}: Game ended - HousieWinner=${!!game.housieWinner}, AllNumbersAnnounced=${game.currentIndex >= 90}`);
+        const hasHousieWinner = game.housieWinner && game.housieWinner.userId;
+        console.log(`🔍 Game ${gameId}: Checking end conditions - HousieWinner=${hasHousieWinner}, CurrentIndex=${game.currentIndex}`);
+        if (hasHousieWinner || game.currentIndex >= 90) {
+          console.log(`🏁 Game ${gameId}: Game ended - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${game.currentIndex >= 90}`);
           clearInterval(interval);
           this.activeGames.delete(gameId);
           await this.endGame(gameId);
