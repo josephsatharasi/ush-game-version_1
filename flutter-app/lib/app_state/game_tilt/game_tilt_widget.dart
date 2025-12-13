@@ -52,6 +52,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   bool _isAppInBackground = false;
   final List<int> _numberQueue = [];
   bool _isProcessingNumber = false;
+  String? _userId;
 
   @override
   void initState() {
@@ -69,6 +70,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     _initTts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('🎮 GAME START: Post frame callback - fetching announced numbers');
+      _loadUserTicket();
       _fetchAnnouncedNumber();
     });
   }
@@ -80,6 +82,38 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     await _flutterTts.setVolume(1.0);
     await _flutterTts.setPitch(1.0);
     debugPrint('🔊 TTS: Text-to-speech initialized successfully');
+  }
+  
+  Future<void> _loadUserTicket() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      _userId = prefs.getString('userId');
+      
+      // Load saved completion status
+      _model.firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
+      _model.secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
+      _model.thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
+      _model.jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
+      _model.housiCompleted = prefs.getBool('housiCompleted') ?? false;
+      
+      if (token != null) {
+        final result = await BackendApiConfig.getMyBookings(token: token);
+        final bookingsList = result['bookings'] as List;
+        
+        if (bookingsList.isNotEmpty) {
+          final booking = bookingsList.first;
+          final generatedNumbers = booking['generatedNumbers'] as List?;
+          
+          if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+            final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+            _model.loadTicketNumbers(firstTicket);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to load user ticket: $e');
+    }
   }
 
   @override
@@ -287,6 +321,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             debugPrint('⏹️ POLLING: Stopping - game completed');
             _numberFetchTimer?.cancel();
             _numberFetchTimer = null;
+            _numberQueue.clear(); // Clear queue
+            _handleGameCompletion();
             return;
           }
           
@@ -298,23 +334,29 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             return;
           }
           
-          // Check for new number announcement
+          // Check for new number announcement - DON'T use queue, announce immediately
           if (newNumber > 0 && newNumber != _currentNumber) {
             debugPrint('🎆 NEW NUMBER: $newNumber (was $_currentNumber)');
             
-            // Add to queue if currently processing another number
-            if (_isProcessingNumber) {
-              if (!_numberQueue.contains(newNumber)) {
-                _numberQueue.add(newNumber);
-                debugPrint('📥 QUEUE: Added $newNumber to queue (size: ${_numberQueue.length})');
-              }
-            } else {
-              setState(() {
-                _currentNumber = newNumber;
-                _announcedNumbers = announcedList;
-              });
-              // Broadcast to all screens via GameNumberService
-              GameNumberService().updateCurrentNumber(newNumber);
+            setState(() {
+              _currentNumber = newNumber;
+              _announcedNumbers = announcedList;
+            });
+            
+            // Broadcast to all screens via GameNumberService
+            GameNumberService().updateCurrentNumber(newNumber);
+            
+            // Always play audio and TTS for new numbers
+            _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
+              debugPrint('❌ AUDIO: Error - $e');
+            });
+            
+            _flutterTts.speak(newNumber.toString()).catchError((e) {
+              debugPrint('❌ TTS: Error - $e');
+            });
+            
+            // Only show visual if on game screen
+            if (mounted && !_isAppInBackground) {
               _processNumber(newNumber);
             }
           } else if (announcedList.length != _announcedNumbers.length) {
@@ -332,96 +374,69 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   }
 
   void _processNumber(int number) {
-    _isProcessingNumber = true;
     _showCoinPop();
   }
 
-  void _processNextInQueue() {
-    if (_numberQueue.isEmpty) {
-      _isProcessingNumber = false;
-      debugPrint('📤 QUEUE: Empty, ready for next number');
-      return;
-    }
-    
-    final nextNumber = _numberQueue.removeAt(0);
-    debugPrint('📤 QUEUE: Processing next number: $nextNumber (remaining: ${_numberQueue.length})');
-    
-    setState(() {
-      _currentNumber = nextNumber;
-    });
-    _processNumber(nextNumber);
-  }
-
   void _showCoinPop() {
-    if (_currentNumber == 0) {
-      debugPrint('❌ COIN: Cannot show - num:$_currentNumber');
-      _isProcessingNumber = false;
+    if (_currentNumber == 0 || !mounted || _isAppInBackground) {
       return;
     }
     
     // Skip if already showing coin
     if (_showCoin) {
-      debugPrint('❌ COIN: Already showing coin');
-      _isProcessingNumber = false;
       return;
     }
     
-    debugPrint('🪙 COIN: Processing backend number: $_currentNumber');
-    debugPrint('🔊 TTS: Speaking number: $_currentNumber (mounted: $mounted)');
+    debugPrint('🪙 COIN: Showing visual for: $_currentNumber');
     
-    try {
-      // ALWAYS play sound and TTS - even if widget not mounted or on different screen
-      // This allows user to hear announcements while on number board
-      _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
-        debugPrint('❌ AUDIO: Error - $e');
-      });
+    setState(() {
+      _showCoin = true;
+    });
+    
+    _coinAnimationController.reset();
+    _coinAnimationController.forward().then((_) {
+      if (!mounted) return;
       
-      _flutterTts.speak(_currentNumber.toString()).catchError((e) {
-        debugPrint('❌ TTS: Error - $e');
-      });
-      
-      // Only show coin visual if widget is mounted (on main screen)
-      if (mounted) {
-        setState(() {
-          _showCoin = true;
-        });
-        
-        _coinAnimationController.reset();
-        _coinAnimationController.forward().then((_) {
+      Timer(const Duration(milliseconds: 2500), () {
+        if (!mounted) return;
+        _coinAnimationController.reverse().then((_) {
           if (!mounted) return;
-          
-          Timer(const Duration(milliseconds: 2500), () {
-            if (!mounted) return;
-            _coinAnimationController.reverse().then((_) {
-              if (!mounted) return;
-              setState(() {
-                _showCoin = false;
-              });
-              _audioPlayer.stop();
-              debugPrint('🪙 COIN: Animation completed for $_currentNumber');
-              
-              // Process next number in queue after a short delay
-              Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted) {
-                  _processNextInQueue();
-                }
-              });
-            });
+          setState(() {
+            _showCoin = false;
           });
+          debugPrint('🪙 COIN: Animation completed for $_currentNumber');
         });
-      }
-    } catch (e) {
-      debugPrint('❌ COIN: Critical error - $e');
-      _isProcessingNumber = false;
-      if (mounted) {
-        setState(() {
-          _showCoin = false;
-        });
-      }
-    }
+      });
+    });
   }
 
 
+
+  void _handleGameCompletion() {
+    if (!mounted) return;
+    
+    // Stop all activities
+    _pauseAllActivities();
+    
+    // Show completion dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('🎉 Game Completed!'),
+        content: const Text('All 90 numbers have been announced. The game has ended.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _exitGame();
+            },
+            child: const Text('Exit to Home'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _exitGame() async {
     debugPrint('🚪 EXIT: User requested to exit game');
@@ -624,15 +639,15 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                     Row(
                       children: [
                         Expanded(
-                          child: _buildCardButtonWithNumber('FIRST LINE', const Color(0xFF1E40AF), '1'),
+                          child: _buildLineButton('FIRST LINE', const Color(0xFF1E40AF), '1'),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildCardButtonWithNumber('SECOND LINE', const Color(0xFFDC2626), '2'),
+                          child: _buildLineButton('SECOND LINE', const Color(0xFFDC2626), '2'),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildCardButtonWithNumber('THIRD LINE', const Color(0xFF059669), '3'),
+                          child: _buildLineButton('THIRD LINE', const Color(0xFF059669), '3'),
                         ),
                       ],
                     ),
@@ -641,11 +656,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                     Row(
                       children: [
                         Expanded(
-                          child: _buildCardButtonWithNumber('JALDHI', const Color(0xFFF59E0B), '5'),
+                          child: _buildLineButton('JALDHI', const Color(0xFFF59E0B), '5'),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildCardButton('HOUSI', const Color(0xFF9F1239)),
+                          child: _buildLineButton('HOUSI', const Color(0xFF9F1239), null),
                         ),
                       ],
                     ),
@@ -712,81 +727,133 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     );
   }
 
-  Widget _buildCardButton(String name, Color color) {
-    final isSelected = _model.selectedCardType == name;
-    final isHousi = name == 'HOUSI';
+  Future<void> _handleLineButtonTap(String lineType) async {
+    debugPrint('🎯 BUTTON: $lineType tapped');
     
-    return GestureDetector(
-      onTap: () {
-        debugPrint('🎯 BUTTON: $name button tapped');
-        setState(() {
-          _model.selectCardType(name);
-        });
-        debugPrint('🎯 BUTTON: Card type selected: $name');
-        // Navigate with current number
-        if (name == 'HOUSI') {
-          debugPrint('🎯 BUTTON: Stopping game and navigating to HOUSI screen');
-          stopGameCompletely(); // Stop all game activities permanently
-          Navigator.pushNamed(context, '/game-tilt-housi', arguments: _currentNumber);
+    bool isCompleted = false;
+    switch (lineType) {
+      case 'FIRST LINE':
+        isCompleted = _model.checkLineCompletion('FIRST LINE');
+        if (isCompleted && !_model.firstLineCompleted) {
+          await _claimWin(lineType);
         }
-      },
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: 3,
+        break;
+      case 'SECOND LINE':
+        isCompleted = _model.checkLineCompletion('SECOND LINE');
+        if (isCompleted && !_model.secondLineCompleted) {
+          await _claimWin(lineType);
+        }
+        break;
+      case 'THIRD LINE':
+        isCompleted = _model.checkLineCompletion('THIRD LINE');
+        if (isCompleted && !_model.thirdLineCompleted) {
+          await _claimWin(lineType);
+        }
+        break;
+      case 'JALDHI':
+        isCompleted = _model.checkJaldhiCompletion();
+        if (isCompleted && !_model.jaldhiCompleted) {
+          await _claimWin(lineType);
+        }
+        break;
+      case 'HOUSI':
+        isCompleted = _model.checkHousiCompletion();
+        if (isCompleted && !_model.housiCompleted) {
+          await _claimWin(lineType);
+        }
+        break;
+    }
+    
+    if (!isCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$lineType not completed yet!'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  Future<void> _claimWin(String winType) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final gameId = prefs.getString('gameId');
+      final cardNumber = prefs.getString('cardNumber');
+      
+      if (token == null || gameId == null || cardNumber == null) {
+        throw Exception('Missing credentials');
+      }
+      
+      debugPrint('🏆 Claiming win for $winType with card $cardNumber');
+      
+      final winTypeMap = {
+        'FIRST LINE': 'FIRST_LINE',
+        'SECOND LINE': 'SECOND_LINE',
+        'THIRD LINE': 'THIRD_LINE',
+        'JALDHI': 'JALDI',
+        'HOUSI': 'HOUSIE',
+      };
+      
+      final response = await BackendApiConfig.claimWin(
+        token: token,
+        gameId: gameId,
+        winType: winTypeMap[winType]!,
+        cardNumber: cardNumber,
+      );
+      
+      if (mounted) {
+        setState(() {
+          switch (winType) {
+            case 'FIRST LINE':
+              _model.firstLineCompleted = true;
+              prefs.setBool('firstLineCompleted', true);
+              break;
+            case 'SECOND LINE':
+              _model.secondLineCompleted = true;
+              prefs.setBool('secondLineCompleted', true);
+              break;
+            case 'THIRD LINE':
+              _model.thirdLineCompleted = true;
+              prefs.setBool('thirdLineCompleted', true);
+              break;
+            case 'JALDHI':
+              _model.jaldhiCompleted = true;
+              prefs.setBool('jaldhiCompleted', true);
+              break;
+            case 'HOUSI':
+              _model.housiCompleted = true;
+              prefs.setBool('housiCompleted', true);
+              break;
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🎉 $winType claimed successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            Center(
-              child: Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            if (isHousi)
-              Positioned(
-                right: 20,
-                top: 3,
-                bottom: 3,
-                child: Opacity(
-                  opacity: 0.51,
-                  child: Image.asset(
-                    'assets/images/housi.png',
-                    width: 36,
-                    height: 44,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Text(
-                        '💸',
-                        style: TextStyle(
-                          fontSize: 40,
-                          color: Colors.white.withOpacity(0.51),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
+        );
+        
+        // Navigate to winner screen for HOUSI
+        if (winType == 'HOUSI') {
+          stopGameCompletely();
+          Navigator.pushNamed(context, '/winner-screen');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to claim win: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to claim: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showTicketDialog() async {
@@ -937,25 +1004,35 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     );
   }
 
-  Widget _buildCardButtonWithNumber(String name, Color color, String displayNumber) {
-    final isSelected = _model.selectedCardType == name;
+  Widget _buildLineButton(String name, Color color, String? displayNumber) {
+    bool isCompleted = false;
+    switch (name) {
+      case 'FIRST LINE':
+        isCompleted = _model.firstLineCompleted;
+        break;
+      case 'SECOND LINE':
+        isCompleted = _model.secondLineCompleted;
+        break;
+      case 'THIRD LINE':
+        isCompleted = _model.thirdLineCompleted;
+        break;
+      case 'JALDHI':
+        isCompleted = _model.jaldhiCompleted;
+        break;
+      case 'HOUSI':
+        isCompleted = _model.housiCompleted;
+        break;
+    }
+    
+    final isHousi = name == 'HOUSI';
+    
     return GestureDetector(
-      onTap: () {
-        debugPrint('🎯 BUTTON: $name button tapped (with number $displayNumber)');
-        setState(() {
-          _model.selectCardType(name);
-        });
-        debugPrint('🎯 BUTTON: Card type selected: $name');
-      },
+      onTap: () => _handleLineButtonTap(name),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: color,
+          color: isCompleted ? Colors.grey : color,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: 3,
-          ),
           boxShadow: const [
             BoxShadow(
               color: Colors.black26,
@@ -967,30 +1044,65 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         child: Stack(
           children: [
             Center(
-              child: Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (isCompleted)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6),
+                      child: Icon(Icons.check_circle, color: Colors.white, size: 18),
+                    ),
+                ],
               ),
             ),
-            Positioned(
-              left: 12,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Text(
-                  displayNumber,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.3),
-                    fontSize: 50,
-                    fontWeight: FontWeight.bold,
+            if (displayNumber != null)
+              Positioned(
+                left: 12,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: Text(
+                    displayNumber,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.3),
+                      fontSize: 50,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
+            if (isHousi)
+              Positioned(
+                right: 20,
+                top: 3,
+                bottom: 3,
+                child: Opacity(
+                  opacity: 0.51,
+                  child: Image.asset(
+                    'assets/images/housi.png',
+                    width: 36,
+                    height: 44,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Text(
+                        '💸',
+                        style: TextStyle(
+                          fontSize: 40,
+                          color: Colors.white.withOpacity(0.51),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),

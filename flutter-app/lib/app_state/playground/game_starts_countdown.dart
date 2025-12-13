@@ -27,7 +27,6 @@ class _GameStartsCountdownState extends State<GameStartsCountdown> {
   void initState() {
     super.initState();
     BackgroundMusicService().play();
-    GameNumberService().initialize();
     _loadGameData();
   }
 
@@ -543,7 +542,6 @@ Positioned(
       if (trimmed == storedCardNumber.toUpperCase()) {
         await prefs.setBool('isInGame', true);
         BackgroundMusicService().stop();
-        GameNumberService().startGame();
         if (mounted) {
           Navigator.push(
             context,

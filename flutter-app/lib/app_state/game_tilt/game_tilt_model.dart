@@ -8,6 +8,19 @@ class GameTiltModel {
   int remainingNumbers = 0;
   String gameStatus = 'WAITING';
   Map<String, dynamic>? winners;
+  
+  // Line status tracking
+  bool firstLineCompleted = false;
+  bool secondLineCompleted = false;
+  bool thirdLineCompleted = false;
+  bool jaldhiCompleted = false;
+  bool housiCompleted = false;
+  
+  // User's ticket numbers
+  List<int> firstLineNumbers = [];
+  List<int> secondLineNumbers = [];
+  List<int> thirdLineNumbers = [];
+  List<int> allTicketNumbers = [];
 
   List<Map<String, dynamic>> cardTypes = [];
 
@@ -67,4 +80,41 @@ class GameTiltModel {
   bool get isGameLive => gameStatus == 'LIVE';
   bool get hasCurrentNumber => currentNumber > 0;
   bool get hasWinners => winners != null && winners!.values.any((winner) => winner != null);
+  
+  void loadTicketNumbers(Map<String, dynamic> ticket) {
+    firstLineNumbers = (ticket['firstLine'] as List?)?.cast<int>() ?? [];
+    secondLineNumbers = (ticket['secondLine'] as List?)?.cast<int>() ?? [];
+    thirdLineNumbers = (ticket['thirdLine'] as List?)?.cast<int>() ?? [];
+    allTicketNumbers = [...firstLineNumbers, ...secondLineNumbers, ...thirdLineNumbers];
+    debugPrint('📋 MODEL: Loaded ticket - 1st: $firstLineNumbers, 2nd: $secondLineNumbers, 3rd: $thirdLineNumbers');
+  }
+  
+  bool checkLineCompletion(String lineType) {
+    List<int> lineNumbers = [];
+    switch (lineType) {
+      case 'FIRST LINE':
+        lineNumbers = firstLineNumbers;
+        break;
+      case 'SECOND LINE':
+        lineNumbers = secondLineNumbers;
+        break;
+      case 'THIRD LINE':
+        lineNumbers = thirdLineNumbers;
+        break;
+    }
+    
+    if (lineNumbers.isEmpty) return false;
+    return lineNumbers.every((num) => announcedNumbers.contains(num));
+  }
+  
+  bool checkJaldhiCompletion() {
+    if (firstLineNumbers.isEmpty) return false;
+    int count = firstLineNumbers.where((num) => announcedNumbers.contains(num)).length;
+    return count >= 5;
+  }
+  
+  bool checkHousiCompletion() {
+    if (allTicketNumbers.isEmpty) return false;
+    return allTicketNumbers.every((num) => announcedNumbers.contains(num));
+  }
 }

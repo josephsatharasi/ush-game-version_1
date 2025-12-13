@@ -197,6 +197,7 @@ class BackendApiConfig {
     required String winType,
     required String cardNumber,
   }) async {
+    _logRequest('game/$gameId/claim-win');
     final response = await http.post(
       Uri.parse('$baseUrl/game/$gameId/claim-win'),
       headers: {

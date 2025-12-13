@@ -19,16 +19,32 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   bool _initialized = false;
   StreamSubscription? _numberSubscription;
   final Set<int> _blockedNumbers = {};
+  bool _firstLineCompleted = false;
+  bool _secondLineCompleted = false;
+  bool _thirdLineCompleted = false;
+  bool _jaldhiCompleted = false;
+  bool _housiCompleted = false;
 
   @override
   void initState() {
     super.initState();
+    _loadCompletionStatus();
     _loadTicketNumbers();
-    _blockedNumbers.addAll(GameNumberService().markedNumbers);
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (mounted) {
         setState(() {});
       }
+    });
+  }
+  
+  Future<void> _loadCompletionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
+      _secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
+      _thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
+      _jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
+      _housiCompleted = prefs.getBool('housiCompleted') ?? false;
     });
   }
 
@@ -231,23 +247,18 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   }
 
   Widget _buildNumberButton(int number) {
-    final isAnnounced = GameNumberService().announcedNumbers.contains(number);
     final isClicked = _blockedNumbers.contains(number);
     final isTicketNumber = _model.isNumberSelected(number);
     
     return GestureDetector(
       onTap: isTicketNumber ? () {
-        if (isAnnounced) {
-          setState(() {
-            if (_blockedNumbers.contains(number)) {
-              _blockedNumbers.remove(number);
-              GameNumberService().unmarkNumber(number);
-            } else {
-              _blockedNumbers.add(number);
-              GameNumberService().markNumber(number);
-            }
-          });
-        }
+        setState(() {
+          if (_blockedNumbers.contains(number)) {
+            _blockedNumbers.remove(number);
+          } else {
+            _blockedNumbers.add(number);
+          }
+        });
       } : null,
       child: Container(
         decoration: BoxDecoration(
@@ -315,25 +326,34 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
 
   Widget _buildGameButton(String name, Color color, String? number) {
     final isSelected = _gameType == name;
+    bool isCompleted = false;
+    
+    switch (name) {
+      case 'FIRST LINE':
+        isCompleted = _firstLineCompleted;
+        break;
+      case 'SECOND LINE':
+        isCompleted = _secondLineCompleted;
+        break;
+      case 'THIRD LINE':
+        isCompleted = _thirdLineCompleted;
+        break;
+      case 'JALDHI':
+        isCompleted = _jaldhiCompleted;
+        break;
+      case 'HOUSI':
+        isCompleted = _housiCompleted;
+        break;
+    }
     
     return GestureDetector(
       onTap: () {
-        if (name == 'FIRST LINE') {
-          Navigator.pushNamed(context, '/game-tilt-first');
-        } else if (name == 'SECOND LINE') {
-          Navigator.pushNamed(context, '/game-tilt-second');
-        } else if (name == 'THIRD LINE') {
-          Navigator.pushNamed(context, '/game-tilt-third');
-        } else if (name == 'JALDHI') {
-          Navigator.pushNamed(context, '/game-tilt-jaldhi');
-        } else if (name == 'HOUSI') {
-          Navigator.pushNamed(context, '/game-tilt-housi');
-        }
+        Navigator.pop(context);
       },
       child: Container(
         height: 50,
         decoration: BoxDecoration(
-          color: color,
+          color: isCompleted ? Colors.grey : color,
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
             color: isSelected ? Colors.white : Colors.transparent,
@@ -350,13 +370,23 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
         child: Stack(
           children: [
             Center(
-              child: Text(
-                name,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (isCompleted)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6),
+                      child: Icon(Icons.check_circle, color: Colors.white, size: 18),
+                    ),
+                ],
               ),
             ),
             if (number != null)
