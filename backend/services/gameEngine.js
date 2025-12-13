@@ -75,15 +75,25 @@ class GameEngine {
           return;
         }
 
-        const hasHousieWinner = game.housieWinner && game.housieWinner.userId;
-        console.log(`🔍 Game ${gameId}: Checking end conditions - HousieWinner=${hasHousieWinner}, CurrentIndex=${game.currentIndex}`);
-        if (hasHousieWinner || game.currentIndex >= 90) {
-          console.log(`🏁 Game ${gameId}: Game ended - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${game.currentIndex >= 90}`);
+        // Check if housie winner exists with actual userId (not just empty object)
+        const hasHousieWinner = game.housieWinner && 
+                                game.housieWinner.userId && 
+                                game.housieWinner.userId.toString().length > 0;
+        const allNumbersAnnounced = game.currentIndex >= 90;
+        
+        console.log(`🔍 Game ${gameId}: End conditions - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${allNumbersAnnounced}, CurrentIndex=${game.currentIndex}/90`);
+        console.log(`🔍 Game ${gameId}: HousieWinner object:`, JSON.stringify(game.housieWinner));
+        
+        // ONLY end game if HOUSIE winner found OR all 90 numbers announced
+        if (hasHousieWinner || allNumbersAnnounced) {
+          console.log(`🏁 Game ${gameId}: ENDING GAME - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${allNumbersAnnounced}`);
           clearInterval(interval);
           this.activeGames.delete(gameId);
           await this.endGame(gameId);
           return;
         }
+        
+        console.log(`✅ Game ${gameId}: Continuing - no end conditions met`);
 
         if (!game.generatedNumbers || game.generatedNumbers.length === 0) {
           console.log(`❌ Game ${gameId}: No generated numbers found (length=${game.generatedNumbers?.length})`);

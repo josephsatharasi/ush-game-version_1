@@ -138,12 +138,8 @@ router.post('/games/create', requireRole(['admin']), async (req, res) => {
       generatedNumbers: numbers,
       currentIndex: 0,
       announcedNumbers: [],
-      currentNumber: null,
-      firstLineWinner: null,
-      secondLineWinner: null,
-      thirdLineWinner: null,
-      jaldiWinner: null,
-      housieWinner: null
+      currentNumber: null
+      // Don't set winner fields - let them be undefined
     });
 
     await game.save();
