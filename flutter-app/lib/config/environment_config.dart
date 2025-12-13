@@ -1,5 +1,5 @@
 class EnvironmentConfig {
-  static const bool _isLocal = bool.fromEnvironment('USE_LOCAL', defaultValue: true);
+  static const bool _isLocal = bool.fromEnvironment('USE_LOCAL', defaultValue: false);
   
   static const String _localUrl = 'http://192.168.0.22:3001';
   static const String _liveUrl = 'http://200.69.21.209:5000';
