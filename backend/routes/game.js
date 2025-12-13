@@ -419,6 +419,10 @@ router.get('/:gameId/status', auth, async (req, res) => {
       await gameEngine.ensureAnnouncementRunning(gameId);
     }
 
+    // Log status for debugging
+    console.log(`📊 STATUS API: Game ${gameId} - Status: ${game.status}, Announced: ${game.announcedNumbers.length}/90`);
+    console.log(`📊 STATUS API: Housie Winner: ${game.housieWinner?.userId ? 'YES' : 'NO'}`);
+
     res.json({
       status: game.status,
       currentNumber: game.currentNumber,

@@ -270,7 +270,27 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           // Update model with game status
           _model.updateFromGameStatus(statusResult);
           
-          // Stop polling if game is not LIVE
+          // DEFENSIVE CHECK: Validate game completion
+          if (gameStatus == 'COMPLETED') {
+            final hasHousieWinner = statusResult['housieWinner'] != null && 
+                                   statusResult['housieWinner']['userId'] != null &&
+                                   statusResult['housieWinner']['userId'].toString().isNotEmpty;
+            
+            if (announcedList.length < 90 && !hasHousieWinner) {
+              debugPrint('⚠️ WARNING: Backend marked game COMPLETED but only ${announcedList.length} numbers announced and no housie winner!');
+              debugPrint('⚠️ Ignoring COMPLETED status and continuing game...');
+              // Don't stop polling, continue game
+              return;
+            }
+            
+            debugPrint('✅ Game legitimately completed: ${announcedList.length} numbers or housie winner');
+            debugPrint('⏹️ POLLING: Stopping - game completed');
+            _numberFetchTimer?.cancel();
+            _numberFetchTimer = null;
+            return;
+          }
+          
+          // Stop polling if game is not LIVE and not COMPLETED
           if (gameStatus != 'LIVE') {
             debugPrint('⏹️ POLLING: Game status is $gameStatus - stopping announcements');
             _numberFetchTimer?.cancel();
@@ -470,79 +490,92 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Student offer banner
-                        Image.asset(
-                          'assets/images/student_offer.png', 
-                          width: 180,
-                          height: 100,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 180,
-                              height: 100,
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.orange, width: 2),
-                              ),
-                              child: Image.asset(
-                                'assets/images/student_offer.png', 
-                                width: 180,
+                        Flexible(
+                          flex: 5,
+                          child: Image.asset(
+                            'assets/images/student_offer.png', 
+                            width: 150,
+                            height: 100,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 150,
                                 height: 100,
-                                fit: BoxFit.contain,
-                              ),
-                            );
-                          },
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.orange, width: 2),
+                                ),
+                                child: Image.asset(
+                                  'assets/images/student_offer.png', 
+                                  width: 150,
+                                  height: 100,
+                                  fit: BoxFit.contain,
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                        Row(
-                          children: [
-                            // Ticket button
-                            GestureDetector(
-                              onTap: () {
-                                debugPrint('🎫 BUTTON: Ticket button tapped');
-                                _showTicketDialog();
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF059669),
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: const Text(
-                                  'Ticket',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            // Numbers button
-                            GestureDetector(
-                              onTap: () {
-                                debugPrint('🔢 BUTTON: Numbers button tapped');
-                                debugPrint('🔢 BUTTON: Navigating to fam-playground - keeping announcements running');
-                                // Don't stop activities - let them run in background
-                                Navigator.pushNamed(context, '/fam-playground');
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E3A8A),
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                child: const Text(
-                                  'Numbers',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          flex: 5,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Ticket button
+                              Flexible(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    debugPrint('🎫 BUTTON: Ticket button tapped');
+                                    _showTicketDialog();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF059669),
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                    child: const Text(
+                                      'Ticket',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              // Numbers button
+                              Flexible(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    debugPrint('🔢 BUTTON: Numbers button tapped');
+                                    debugPrint('🔢 BUTTON: Navigating to fam-playground - keeping announcements running');
+                                    // Don't stop activities - let them run in background
+                                    Navigator.pushNamed(context, '/fam-playground');
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1E3A8A),
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                    child: const Text(
+                                      'Numbers',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),

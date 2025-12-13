@@ -75,18 +75,24 @@ class GameEngine {
           return;
         }
 
-        // Check if housie winner exists with actual userId (not just empty object)
-        const hasHousieWinner = game.housieWinner && 
-                                game.housieWinner.userId && 
-                                game.housieWinner.userId.toString().length > 0;
+        // CRITICAL: Robust validation for housie winner
+        const hasValidHousieWinner = game.housieWinner && 
+                                     game.housieWinner.userId && 
+                                     game.housieWinner.userId.toString().length > 20; // MongoDB ObjectId is 24 chars
         const allNumbersAnnounced = game.currentIndex >= 90;
         
-        console.log(`🔍 Game ${gameId}: End conditions - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${allNumbersAnnounced}, CurrentIndex=${game.currentIndex}/90`);
-        console.log(`🔍 Game ${gameId}: HousieWinner object:`, JSON.stringify(game.housieWinner));
+        console.log(`🔍 Game ${gameId}: End conditions check:`);
+        console.log(`   - Current Index: ${game.currentIndex}/90`);
+        console.log(`   - Announced Count: ${game.announcedNumbers.length}`);
+        console.log(`   - Housie Winner exists: ${!!game.housieWinner}`);
+        console.log(`   - Housie Winner userId: ${game.housieWinner?.userId || 'NONE'}`);
+        console.log(`   - Valid Housie Winner: ${hasValidHousieWinner}`);
+        console.log(`   - All Numbers Announced: ${allNumbersAnnounced}`);
         
         // ONLY end game if HOUSIE winner found OR all 90 numbers announced
-        if (hasHousieWinner || allNumbersAnnounced) {
-          console.log(`🏁 Game ${gameId}: ENDING GAME - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${allNumbersAnnounced}`);
+        if (hasValidHousieWinner || allNumbersAnnounced) {
+          console.log(`🏁 Game ${gameId}: ENDING GAME`);
+          console.log(`   - Reason: ${hasValidHousieWinner ? 'HOUSIE WINNER FOUND' : 'ALL 90 NUMBERS ANNOUNCED'}`);
           clearInterval(interval);
           this.activeGames.delete(gameId);
           await this.endGame(gameId);
