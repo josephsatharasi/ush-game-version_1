@@ -23,6 +23,7 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
   bool _showYouWon = false;
   bool _showWinner = false;
   bool _isUserWinner = false;
+  String _winnerUsername = 'Unknown';
 
   @override
   void initState() {
@@ -42,28 +43,29 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
         return;
       }
       
-      // Fetch winners from backend
-      final response = await BackendApiConfig.getWinners(
+      // Fetch game status to get housie winner
+      final response = await BackendApiConfig.getGameStatus(
         token: token,
         gameId: gameId,
       );
       
-      final winners = response['winners'] as List;
-      final housieWinner = winners.firstWhere(
-        (w) => w['winType'] == 'HOUSIE',
-        orElse: () => null,
-      );
+      debugPrint('🎮 Game Status Response: $response');
       
-      if (housieWinner != null) {
+      final housieWinner = response['housieWinner'];
+      
+      if (housieWinner != null && housieWinner['userId'] != null) {
         final winnerUserId = housieWinner['userId'];
-        final winnerUsername = housieWinner['username'] ?? 'Unknown';
+        final cardNumber = housieWinner['cardNumber'] ?? 'Unknown';
         
         setState(() {
           _isUserWinner = userId == winnerUserId;
+          _winnerUsername = 'Card: $cardNumber';
         });
         
+        debugPrint('🏆 Housie Winner: $_winnerUsername (${_isUserWinner ? "You" : "Other"})');
         _startSequence();
       } else {
+        debugPrint('⚠️ No housie winner found');
         _navigateToHome();
       }
     } catch (e) {
@@ -352,7 +354,7 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    widget.winnerUsername ?? 'Unknown',
+                    _winnerUsername,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,
