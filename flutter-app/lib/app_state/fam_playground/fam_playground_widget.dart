@@ -619,12 +619,14 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
           SnackBar(content: Text('🎉 $lineType claimed successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
         );
         
-        // Navigate to winner screen after ANY win
-        Future.delayed(Duration(seconds: 2), () {
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/winner');
-          }
-        });
+        // Navigate to winner screen after HOUSIE win
+        if (lineType == 'HOUSI') {
+          Future.delayed(Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, '/winner');
+            }
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
