@@ -62,11 +62,10 @@ class WinValidator {
       isValid = ticketNumbers.thirdLine.every(num => announcedNumbers.includes(num));
       if (!isValid) return { valid: false, reason: 'Third line not complete' };
     } else if (winType === 'JALDI') {
-      const firstComplete = ticketNumbers.firstLine.every(num => announcedNumbers.includes(num));
-      const secondComplete = ticketNumbers.secondLine.every(num => announcedNumbers.includes(num));
-      const thirdComplete = ticketNumbers.thirdLine.every(num => announcedNumbers.includes(num));
-      isValid = firstComplete || secondComplete || thirdComplete;
-      if (!isValid) return { valid: false, reason: 'No complete line found for Jaldi' };
+      const allNumbers = [...ticketNumbers.firstLine, ...ticketNumbers.secondLine, ...ticketNumbers.thirdLine];
+      const struckCount = allNumbers.filter(num => announcedNumbers.includes(num)).length;
+      isValid = struckCount >= 5;
+      if (!isValid) return { valid: false, reason: 'Need at least 5 numbers struck for Jaldi' };
     } else if (winType === 'HOUSIE') {
       const allComplete = ticketNumbers.firstLine.every(num => announcedNumbers.includes(num)) &&
                           ticketNumbers.secondLine.every(num => announcedNumbers.includes(num)) &&

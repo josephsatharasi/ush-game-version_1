@@ -615,9 +615,9 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
           }
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('🎉 $lineType claimed successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text(' $lineType'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+        // );
         
         // Navigate to winner screen after HOUSIE win
         if (lineType == 'HOUSI') {

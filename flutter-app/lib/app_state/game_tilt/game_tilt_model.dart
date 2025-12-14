@@ -108,17 +108,10 @@ class GameTiltModel {
   }
   
   bool checkJaldhiCompletion() {
-    // Jaldi: Any ONE complete line (first, second, or third)
+    // Jaldi: Any 5 numbers anywhere on ticket
     if (allTicketNumbers.isEmpty) return false;
-    
-    final firstComplete = firstLineNumbers.isNotEmpty && 
-                         firstLineNumbers.every((num) => announcedNumbers.contains(num));
-    final secondComplete = secondLineNumbers.isNotEmpty && 
-                          secondLineNumbers.every((num) => announcedNumbers.contains(num));
-    final thirdComplete = thirdLineNumbers.isNotEmpty && 
-                         thirdLineNumbers.every((num) => announcedNumbers.contains(num));
-    
-    return firstComplete || secondComplete || thirdComplete;
+    final struckCount = allTicketNumbers.where((num) => announcedNumbers.contains(num)).length;
+    return struckCount >= 5;
   }
   
   bool checkHousiCompletion() {
