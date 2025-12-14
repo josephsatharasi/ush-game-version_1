@@ -29,12 +29,24 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   void initState() {
     super.initState();
     _checkAndClearOldGameData();
+    _loadCompletionStatus();
     _loadTicketNumbers();
     _loadMarkedNumbers();
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (mounted) {
         setState(() {});
       }
+    });
+  }
+  
+  Future<void> _loadCompletionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
+      _secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
+      _thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
+      _jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
+      _housiCompleted = prefs.getBool('housiCompleted') ?? false;
     });
   }
   
@@ -531,27 +543,45 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
       return;
     }
     
-    // Validate: all line numbers must be announced AND marked
+    // Validate based on line type
     final announcedNumbers = GameNumberService().announcedNumbers;
-    bool allAnnounced = lineNumbers.every((num) => announcedNumbers.contains(num));
-    bool allMarked = lineNumbers.every((num) => _blockedNumbers.contains(num));
     
-    if (!allAnnounced) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$lineType not completed yet! Wait for all numbers.'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
-        );
+    if (lineType == 'JALDHI') {
+      // JALDHI: Check if at least 5 ticket numbers are announced AND marked
+      final ticketMarkedAnnounced = lineNumbers
+          .where((num) => announcedNumbers.contains(num) && _blockedNumbers.contains(num))
+          .toList();
+      
+      if (ticketMarkedAnnounced.length < 5) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('JALDHI requires at least 5 numbers from your ticket to be announced and marked!'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+          );
+        }
+        return;
       }
-      return;
-    }
-    
-    if (!allMarked) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please mark all numbers first!'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
-        );
+    } else {
+      // For lines and HOUSI
+      bool allAnnounced = lineNumbers.every((num) => announcedNumbers.contains(num));
+      bool allMarked = lineNumbers.every((num) => _blockedNumbers.contains(num));
+      
+      if (!allAnnounced) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$lineType not completed yet! Wait for all numbers.'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+          );
+        }
+        return;
       }
-      return;
+      
+      if (!allMarked) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please mark all numbers first!'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+          );
+        }
+        return;
+      }
     }
     
     final gameId = prefs.getString('gameId');
@@ -583,6 +613,7 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
       );
       
       // Save coupon data from response
+      
       if (response['couponCode'] != null) {
         await prefs.setString('wonCouponCode', response['couponCode']);
         await prefs.setInt('wonCouponValue', response['couponValue'] ?? 0);

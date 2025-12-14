@@ -72,8 +72,20 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     _initTts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint('🎮 GAME START: Post frame callback - fetching announced numbers');
+      _loadCompletionStatus();
       _loadUserTicket();
       _fetchAnnouncedNumber();
+    });
+  }
+  
+  Future<void> _loadCompletionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _model.firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
+      _model.secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
+      _model.thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
+      _model.jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
+      _model.housiCompleted = prefs.getBool('housiCompleted') ?? false;
     });
   }
 
@@ -761,48 +773,69 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     final markedList = prefs.getStringList('markedNumbers') ?? [];
     final markedNumbers = markedList.map((e) => int.parse(e)).toSet();
     
-    // Get line numbers
+    // Get line numbers and validation logic
     List<int> lineNumbers = [];
-    switch (lineType) {
-      case 'FIRST LINE':
-        lineNumbers = _model.firstLineNumbers;
-        break;
-      case 'SECOND LINE':
-        lineNumbers = _model.secondLineNumbers;
-        break;
-      case 'THIRD LINE':
-        lineNumbers = _model.thirdLineNumbers;
-        break;
-      case 'JALDHI':
-      case 'HOUSI':
-        lineNumbers = _model.allTicketNumbers;
-        break;
-    }
+    bool isValid = false;
     
-    // Validate: all line numbers must be announced AND marked
-    bool allAnnounced = lineNumbers.every((num) => _announcedNumbers.contains(num));
-    bool allMarked = lineNumbers.every((num) => markedNumbers.contains(num));
-    
-    if (!allAnnounced) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$lineType not completed yet! Wait for all numbers.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    
-    if (!allMarked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Please mark all numbers in the number board first!'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
+    if (lineType == 'JALDHI') {
+      // JALDHI: Check if at least 5 ticket numbers are announced AND marked
+      final ticketMarkedAnnounced = _model.allTicketNumbers
+          .where((num) => _announcedNumbers.contains(num) && markedNumbers.contains(num))
+          .toList();
+      
+      isValid = ticketMarkedAnnounced.length >= 5;
+      
+      if (!isValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('JALDHI requires at least 5 numbers from your ticket to be announced and marked!'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+    } else {
+      // For lines and HOUSI
+      switch (lineType) {
+        case 'FIRST LINE':
+          lineNumbers = _model.firstLineNumbers;
+          break;
+        case 'SECOND LINE':
+          lineNumbers = _model.secondLineNumbers;
+          break;
+        case 'THIRD LINE':
+          lineNumbers = _model.thirdLineNumbers;
+          break;
+        case 'HOUSI':
+          lineNumbers = _model.allTicketNumbers;
+          break;
+      }
+      
+      bool allAnnounced = lineNumbers.every((num) => _announcedNumbers.contains(num));
+      bool allMarked = lineNumbers.every((num) => markedNumbers.contains(num));
+      
+      if (!allAnnounced) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$lineType not completed yet! Wait for all numbers.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      
+      if (!allMarked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please mark all numbers in the number board first!'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
     }
     
     await _claimWin(lineType);
