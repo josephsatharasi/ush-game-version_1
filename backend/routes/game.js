@@ -465,7 +465,7 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
       return res.status(400).json({ valid: false, message: validation.reason });
     }
 
-    const booking = await Booking.findOne({ userId, gameId });
+    const booking = await Booking.findOne({ userId, gameId }).populate('userId', 'username');
     if (!booking) {
       return res.status(400).json({ valid: false, message: 'No booking found' });
     }
@@ -487,14 +487,18 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
       const couponCode = autoCouponGenerator.generateCoupon(winType);
       const couponValue = autoCouponGenerator.getCouponValue(winType);
       
+      const username = booking.userId?.username || 'Unknown';
+      
       game[winnerField] = {
         userId,
+        username: username,
         cardNumber: cardNumber,
         wonAt: new Date(),
         couponCode: couponCode,
         couponValue: couponValue
       };
       console.log(`🎟️ Auto-generated coupon: ${couponCode} (Value: ₹${couponValue})`);
+      console.log(`👤 Winner username: ${username}`);
       console.log(`💾 Saving game with winner field: ${winnerField}`);
     }
     await game.save();

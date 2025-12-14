@@ -197,19 +197,19 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
                             : _buildScratchCard(),
                         SizedBox(height: 20),
                         // Text based on state
-                        Text(
-                          _isLoading 
-                            ? "Loading your reward..."
-                            : _isScratched 
-                              ? (_hasWon ? "Yay! You have won $_rewardAmount" : "Better luck next time!")
-                              : "Scratch with your finger to reveal reward",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        // Text(
+                        //   _isLoading 
+                        //     ? "Loading your reward..."
+                        //     : _isScratched 
+                        //       ? (_hasWon ? "Yay! You have won $_rewardAmount" : "Better luck next time!")
+                        //       : "Scratch with your finger to reveal reward",
+                        //   style: TextStyle(
+                        //     fontSize: 18,
+                        //     fontWeight: FontWeight.w500,
+                        //     color: Colors.black87,
+                        //   ),
+                        //   textAlign: TextAlign.center,
+                        // ),
                         if (_isScratched && _hasWon) ...[
                           SizedBox(height: 10),
                           Text(

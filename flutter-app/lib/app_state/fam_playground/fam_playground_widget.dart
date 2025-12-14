@@ -94,9 +94,15 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
       final savedGameId = prefs.getString('lastMarkedGameId');
       
       if (currentGameId != savedGameId) {
-        debugPrint('🆕 New game detected - clearing old marked numbers');
+        debugPrint('🆕 New game detected - clearing old game data');
         await prefs.remove('markedNumbers');
+        await prefs.remove('firstLineCompleted');
+        await prefs.remove('secondLineCompleted');
+        await prefs.remove('thirdLineCompleted');
+        await prefs.remove('jaldhiCompleted');
+        await prefs.remove('housiCompleted');
         await prefs.setString('lastMarkedGameId', currentGameId ?? '');
+        debugPrint('✅ Cleared all completion status for new game');
       }
     } catch (e) {
       debugPrint('Failed to check game data: $e');

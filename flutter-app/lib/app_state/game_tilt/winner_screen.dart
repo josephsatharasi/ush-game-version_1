@@ -58,19 +58,7 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
       
       if (housieWinner != null && housieWinner['userId'] != null) {
         final winnerUserId = housieWinner['userId'];
-        
-        // Fetch winner's user details to get username
-        String winnerName = 'Unknown';
-        try {
-          final userResponse = await BackendApiConfig.getUserById(
-            token: token,
-            userId: winnerUserId,
-          );
-          winnerName = userResponse['username'] ?? 'Unknown';
-        } catch (e) {
-          debugPrint('⚠️ Failed to fetch winner username: $e');
-          winnerName = housieWinner['cardNumber'] ?? 'Unknown';
-        }
+        final winnerName = housieWinner['username'] ?? 'Unknown';
         
         // Check if user won any partial prizes
         final firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;

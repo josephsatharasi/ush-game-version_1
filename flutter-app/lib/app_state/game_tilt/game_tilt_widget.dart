@@ -70,23 +70,56 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     );
     debugPrint('🎮 GAME START: Animation controller initialized');
     _initTts();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       debugPrint('🎮 GAME START: Post frame callback - fetching announced numbers');
-      _loadCompletionStatus();
+      await _checkAndClearOldGameData();
+      await _loadCompletionStatus();
       _loadUserTicket();
       _fetchAnnouncedNumber();
     });
   }
   
+  Future<void> _checkAndClearOldGameData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentGameId = prefs.getString('gameId');
+      final savedGameId = prefs.getString('lastGameTiltId');
+      
+      if (currentGameId != savedGameId) {
+        debugPrint('🆕 New game detected - clearing old game data');
+        await prefs.remove('markedNumbers');
+        await prefs.remove('firstLineCompleted');
+        await prefs.remove('secondLineCompleted');
+        await prefs.remove('thirdLineCompleted');
+        await prefs.remove('jaldhiCompleted');
+        await prefs.remove('housiCompleted');
+        await prefs.setString('lastGameTiltId', currentGameId ?? '');
+        debugPrint('✅ Cleared all completion status for new game');
+      }
+    } catch (e) {
+      debugPrint('Failed to check game data: $e');
+    }
+  }
+  
   Future<void> _loadCompletionStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _model.firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
-      _model.secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
-      _model.thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
-      _model.jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
-      _model.housiCompleted = prefs.getBool('housiCompleted') ?? false;
-    });
+    final firstLine = prefs.getBool('firstLineCompleted') ?? false;
+    final secondLine = prefs.getBool('secondLineCompleted') ?? false;
+    final thirdLine = prefs.getBool('thirdLineCompleted') ?? false;
+    final jaldhi = prefs.getBool('jaldhiCompleted') ?? false;
+    final housi = prefs.getBool('housiCompleted') ?? false;
+    
+    debugPrint('📊 Loading completion status: 1st=$firstLine, 2nd=$secondLine, 3rd=$thirdLine, jaldhi=$jaldhi, housi=$housi');
+    
+    if (mounted) {
+      setState(() {
+        _model.firstLineCompleted = firstLine;
+        _model.secondLineCompleted = secondLine;
+        _model.thirdLineCompleted = thirdLine;
+        _model.jaldhiCompleted = jaldhi;
+        _model.housiCompleted = housi;
+      });
+    }
   }
 
   Future<void> _initTts() async {
