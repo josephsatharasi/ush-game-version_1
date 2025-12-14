@@ -527,61 +527,64 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                         const SizedBox(width: 8),
                         Flexible(
                           flex: 5,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Ticket button
-                              Flexible(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    debugPrint('🎫 BUTTON: Ticket button tapped');
-                                    _showTicketDialog();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF059669),
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: const Text(
-                                      'Ticket',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Numbers button
-                              Flexible(
-                                child: GestureDetector(
-                                  onTap: () async {
-                                    debugPrint('🔢 BUTTON: Numbers button tapped');
-                                    debugPrint('🔢 BUTTON: Navigating to fam-playground - keeping announcements running');
-                                    // Don't stop activities - let them run in background
-                                    await Navigator.pushNamed(context, '/fam-playground');
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1E3A8A),
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    child: const Text(
-                                      'Numbers',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600),
+                          child: Transform.translate(
+                            offset: const Offset(-10, 0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Ticket button
+                                Flexible(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      debugPrint('🎫 BUTTON: Ticket button tapped');
+                                      _showTicketDialog();
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF059669),
+                                        borderRadius: BorderRadius.circular(25),
+                                      ),
+                                      child: const Text(
+                                        'Ticket',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 8),
+                                // Numbers button
+                                Flexible(
+                                  child: GestureDetector(
+                                    onTap: () async {
+                                      debugPrint('🔢 BUTTON: Numbers button tapped');
+                                      debugPrint('🔢 BUTTON: Navigating to fam-playground - keeping announcements running');
+                                      // Don't stop activities - let them run in background
+                                      await Navigator.pushNamed(context, '/fam-playground');
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1E3A8A),
+                                        borderRadius: BorderRadius.circular(25),
+                                      ),
+                                      child: const Text(
+                                        'Numbers',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
