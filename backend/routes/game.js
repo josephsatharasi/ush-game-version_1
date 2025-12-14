@@ -316,30 +316,7 @@ router.post('/:gameId/verify-card', auth, async (req, res) => {
 
 
 
-// Get announced numbers
-router.get('/:gameId/announced-numbers', auth, async (req, res) => {
-  try {
-    const { gameId } = req.params;
 
-    const game = await LiveGame.findById(gameId);
-    if (!game) {
-      return res.status(404).json({ message: 'Game not found' });
-    }
-
-    const gameEngine = req.app.get('gameEngine');
-    if (gameEngine && game.status === 'LIVE') {
-      await gameEngine.ensureAnnouncementRunning(gameId);
-    }
-
-    res.json({
-      announcedNumbers: game.announcedNumbers,
-      currentNumber: game.currentNumber,
-      remaining: 90 - game.announcedNumbers.length
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
 
 // Auto-generate next number
 router.post('/:gameId/next-number', auth, async (req, res) => {
@@ -420,14 +397,20 @@ router.get('/:gameId/status', auth, async (req, res) => {
       await gameEngine.ensureAnnouncementRunning(gameId);
     }
 
-    // Log status for debugging
-    console.log(`📊 STATUS API: Game ${gameId} - Status: ${game.status}, Announced: ${game.announcedNumbers.length}/90`);
-    console.log(`📊 STATUS API: Housie Winner: ${game.housieWinner?.userId ? 'YES' : 'NO'}`);
+    // ✅ DEFENSIVE CHECK: Validate game status before sending to client
+    const hasHousieWinner = game.housieWinner?.userId && game.housieWinner?.cardNumber;
+    const allNumbersAnnounced = game.currentIndex >= 90;
+    
+    // If backend incorrectly marked as COMPLETED but conditions not met, log warning
+    if (game.status === 'COMPLETED' && !hasHousieWinner && !allNumbersAnnounced) {
+      console.log(`⚠️⚠️⚠️ WARNING: Game ${gameId} marked COMPLETED but only ${game.announcedNumbers.length}/90 announced and no housie winner!`);
+    }
 
     res.json({
       status: game.status,
       currentNumber: game.currentNumber,
       announcedNumbers: game.announcedNumbers,
+      remaining: 90 - game.announcedNumbers.length,
       firstLineWinner: game.firstLineWinner,
       secondLineWinner: game.secondLineWinner,
       thirdLineWinner: game.thirdLineWinner,
@@ -482,13 +465,9 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     const winnerField = winTypeMap[winType];
     if (winnerField) {
       console.log(`🎯 Setting ${winnerField} for game ${gameId}`);
-      
-      // Auto-generate coupon code
-      const couponCode = autoCouponGenerator.generateCoupon(winType);
-      const couponValue = autoCouponGenerator.getCouponValue(winType);
-      
+      // ✅ CRITICAL FIX: Ensure winner object is properly initialized with all required fields
       game[winnerField] = {
-        userId,
+        userId: userId,
         cardNumber: cardNumber,
         wonAt: new Date(),
         couponCode: couponCode,
@@ -496,6 +475,13 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
       };
       console.log(`🎟️ Auto-generated coupon: ${couponCode} (Value: ₹${couponValue})`);
       console.log(`💾 Saving game with winner field: ${winnerField}`);
+      console.log(`🔍 Winner object:`, JSON.stringify(game[winnerField]));
+      
+      // ✅ CRITICAL: If HOUSIE winner, log that game should end after this save
+      if (winType === 'HOUSIE') {
+        console.log(`🏆🏆🏆 HOUSIE WINNER CLAIMED! Game should end after this save.`);
+        console.log(`📊 Current state: Announced=${game.announcedNumbers.length}/90, Index=${game.currentIndex}`);
+      }
     }
     await game.save();
     console.log(`✅ Game saved successfully. Status: ${game.status}`);

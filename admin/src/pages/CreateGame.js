@@ -8,13 +8,14 @@ const CreateGame = () => {
     totalSlots: 100,
     availableTickets: [1, 3, 6],
     maxTicketsPerUser: 6,
-    availableTimeSlots: []
+    availableTimeSlots: [],
+    selectedWeekDays: []
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const ticketOptions = [1, 2, 3, 4, 5, 6];
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const timeSlots = [
     { time: '10:00 AM', badge: 'Best time' },
     { time: '11:00 AM', badge: null },
@@ -36,6 +37,13 @@ const CreateGame = () => {
       ? formData.availableTickets.filter(t => t !== ticket)
       : [...formData.availableTickets, ticket].sort((a, b) => a - b);
     setFormData({ ...formData, availableTickets: tickets });
+  };
+
+  const toggleWeekDay = (day) => {
+    const days = formData.selectedWeekDays.includes(day)
+      ? formData.selectedWeekDays.filter(d => d !== day)
+      : [...formData.selectedWeekDays, day];
+    setFormData({ ...formData, selectedWeekDays: days });
   };
 
 
@@ -96,7 +104,8 @@ const CreateGame = () => {
           maxTicketsPerUser: formData.maxTicketsPerUser,
           availableTickets: formData.availableTickets,
           availableTimeSlots: formData.availableTimeSlots,
-          scheduledDate: formData.scheduledDate
+          scheduledDate: formData.scheduledDate,
+          selectedWeekDays: formData.selectedWeekDays
         })
       });
 
@@ -110,7 +119,8 @@ const CreateGame = () => {
           totalSlots: 100,
           availableTickets: [1, 3, 6],
           maxTicketsPerUser: 6,
-          availableTimeSlots: []
+          availableTimeSlots: [],
+          selectedWeekDays: []
         });
       } else {
         setMessage('⚠️ Game created but configuration failed: ' + configData.message);
@@ -214,6 +224,28 @@ const CreateGame = () => {
                 }`}
               >
                 {ticket} Ticket{ticket > 1 ? 's' : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Week Days Selection */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Available Week Days</h2>
+          <p className="text-sm text-gray-600 mb-4">Select the days when this game can be played</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {weekDays.map(day => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleWeekDay(day)}
+                className={`py-3 px-4 rounded-xl font-semibold transition ${
+                  formData.selectedWeekDays.includes(day)
+                    ? 'bg-green-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {day.substring(0, 3)}
               </button>
             ))}
           </div>

@@ -131,6 +131,7 @@ const Tickets = () => {
               <tr>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">User</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Tickets</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">Card Numbers</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Generated Numbers</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Game</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Day & Time</th>
@@ -140,9 +141,9 @@ const Tickets = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                <tr><td colSpan="9" className="text-center py-4">Loading...</td></tr>
               ) : displayTickets.length === 0 ? (
-                <tr><td colSpan="8" className="text-center py-8 text-gray-500">No tickets found. Bookings will appear here once users book tickets.</td></tr>
+                <tr><td colSpan="9" className="text-center py-8 text-gray-500">No tickets found. Bookings will appear here once users book tickets.</td></tr>
               ) : displayTickets.map((ticket) => (
                 <tr key={ticket.id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
@@ -159,6 +160,18 @@ const Tickets = () => {
                       ))}
                       {ticket.ticketNumbers.length > 2 && (
                         <div className="text-xs text-blue-600">+{ticket.ticketNumbers.length - 2} more</div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="space-y-1">
+                      {ticket.cardNumbers.slice(0, 2).map((cn, i) => (
+                        <div key={i} className="font-mono text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-1 rounded">
+                          {cn}
+                        </div>
+                      ))}
+                      {ticket.cardNumbers.length > 2 && (
+                        <div className="text-xs text-purple-600">+{ticket.cardNumbers.length - 2} more</div>
                       )}
                     </div>
                   </td>

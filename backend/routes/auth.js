@@ -14,7 +14,7 @@ router.post('/register', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY));
+    const otpExpiry = new Date(Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300000));
 
     user = new User({ username, phone, password, otp, otpExpiry });
     await user.save();
@@ -94,7 +94,7 @@ router.post('/resend-otp', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY));
+    const otpExpiry = new Date(Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300000));
 
     user.otp = otp;
     user.otpExpiry = otpExpiry;
