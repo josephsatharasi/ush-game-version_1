@@ -4,6 +4,7 @@ import 'package:ush_app/widgets/loction_header.dart';
 import '../../services/background_music_service.dart';
 import '../../config/backend_api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:scratcher/scratcher.dart';
 
 class ScratchRewardScreen extends StatefulWidget {
   const ScratchRewardScreen({super.key});
@@ -127,7 +128,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
     super.dispose();
   }
 
-  void _onScratchCardTapped() {
+  void _onScratchComplete() {
     if (!_isScratched && !_isLoading) {
       setState(() {
         _isScratched = true;
@@ -201,7 +202,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
                             ? "Loading your reward..."
                             : _isScratched 
                               ? (_hasWon ? "Yay! You have won $_rewardAmount" : "Better luck next time!")
-                              : "Scratch to get reward",
+                              : "Scratch with your finger to reveal reward",
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w500,
@@ -331,77 +332,92 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
   }
 
   Widget _buildScratchCard() {
-    return GestureDetector(
-      onTap: _onScratchCardTapped,
-      child: Container(
-        width: double.infinity,
-        height: 250,
-        decoration: BoxDecoration(
-          color: Color(0xFF1E3A8A),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Scratch pattern
-            Icon(
-              Icons.card_giftcard,
-              size: 120,
-              color: Colors.white.withOpacity(0.3),
-            ),
-            // Animated hand gesture
-            Positioned(
-              right: 30,
-              top: 30,
-              child: AnimatedBuilder(
-                animation: _animationController,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(
-                      10 * (0.5 - (_animationController.value % 1.0).abs()),
-                      0,
-                    ),
-                    child: Text(
-                      '👆',
-                      style: TextStyle(fontSize: 40),
-                    ),
-                  );
-                },
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Scratcher(
+        brushSize: 40,
+        threshold: 50,
+        color: Color(0xFF1E3A8A),
+        onChange: (value) {
+          debugPrint('Scratch progress: $value%');
+        },
+        onThreshold: () {
+          debugPrint('Threshold reached!');
+          _onScratchComplete();
+        },
+        child: Container(
+          width: double.infinity,
+          height: 250,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-            ),
-            // Scratch instruction
-            Positioned(
-              bottom: 30,
-              child: Text(
-                'Tap to scratch',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('🎉', style: TextStyle(fontSize: 30)),
+                  SizedBox(width: 10),
+                  Text('🎊', style: TextStyle(fontSize: 30)),
+                  SizedBox(width: 10),
+                  Text('🎈', style: TextStyle(fontSize: 30)),
+                ],
+              ),
+              SizedBox(height: 20),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                  _rewardAmount,
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E3A8A),
+                  ),
                 ),
               ),
-            ),
-          ],
+              SizedBox(height: 20),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _rewardCode,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildRewardCard() {
-    return GestureDetector(
-      onTap: _onScratchCardTapped,
-      child: FadeTransition(
-        opacity: _rewardFadeAnimation,
-        child: ScaleTransition(
-          scale: _rewardScaleAnimation,
-          child: Container(
+    return FadeTransition(
+      opacity: _rewardFadeAnimation,
+      child: ScaleTransition(
+        scale: _rewardScaleAnimation,
+        child: Container(
             width: double.infinity,
             padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -483,7 +499,6 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
           ),
         ),
       ),
-    ),
     );
   }
 

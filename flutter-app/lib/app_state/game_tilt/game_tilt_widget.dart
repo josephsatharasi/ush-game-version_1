@@ -870,20 +870,22 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           SnackBar(
             content: Text('🎉 $winType claimed successfully!'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: Duration(seconds: 2),
           ),
         );
         
-        // Navigate to winner screen for HOUSI
-        if (winType == 'HOUSI') {
-          stopGameCompletely();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const WinnerScreen(),
-            ),
-          );
-        }
+        // Navigate to winner screen after ANY win
+        Future.delayed(Duration(seconds: 2), () {
+          if (mounted) {
+            stopGameCompletely();
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const WinnerScreen(),
+              ),
+            );
+          }
+        });
       }
     } catch (e) {
       debugPrint('❌ Failed to claim win: $e');

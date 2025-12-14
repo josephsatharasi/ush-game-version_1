@@ -43,7 +43,7 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
         return;
       }
       
-      // Fetch game status to get housie winner
+      // Fetch game status to get all winners
       final response = await BackendApiConfig.getGameStatus(
         token: token,
         gameId: gameId,
@@ -51,21 +51,62 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
       
       debugPrint('🎮 Game Status Response: $response');
       
-      final housieWinner = response['housieWinner'];
+      // Check all win types in priority order
+      final winTypes = [
+        {'key': 'housieWinner', 'label': 'Housie'},
+        {'key': 'jaldiWinner', 'label': 'Jaldi'},
+        {'key': 'firstLineWinner', 'label': 'First Line'},
+        {'key': 'secondLineWinner', 'label': 'Second Line'},
+        {'key': 'thirdLineWinner', 'label': 'Third Line'},
+      ];
       
-      if (housieWinner != null && housieWinner['userId'] != null) {
-        final winnerUserId = housieWinner['userId'];
-        final cardNumber = housieWinner['cardNumber'] ?? 'Unknown';
+      Map<String, dynamic>? winnerData;
+      String winType = '';
+      
+      for (var type in winTypes) {
+        final winner = response[type['key']];
+        if (winner != null && winner['userId'] != null) {
+          winnerData = winner;
+          winType = type['label']!;
+          break;
+        }
+      }
+      
+      if (winnerData != null) {
+        final winnerUserId = winnerData['userId'];
+        final cardNumber = winnerData['cardNumber'] ?? 'Unknown';
+        final isCurrentUserWinner = userId == winnerUserId;
+        
+        // Fetch winner's username from backend
+        String displayName = 'Card: $cardNumber';
+        if (!isCurrentUserWinner) {
+          try {
+            final winnersResponse = await BackendApiConfig.getWinners(
+              token: token,
+              gameId: gameId,
+            );
+            final winners = winnersResponse['winners'] as List;
+            final winnerInfo = winners.firstWhere(
+              (w) => w['userId'] == winnerUserId,
+              orElse: () => null,
+            );
+            if (winnerInfo != null && winnerInfo['username'] != null) {
+              displayName = winnerInfo['username'];
+            }
+          } catch (e) {
+            debugPrint('⚠️ Failed to fetch winner username: $e');
+          }
+        }
         
         setState(() {
-          _isUserWinner = userId == winnerUserId;
-          _winnerUsername = 'Card: $cardNumber';
+          _isUserWinner = isCurrentUserWinner;
+          _winnerUsername = displayName;
         });
         
-        debugPrint('🏆 Housie Winner: $_winnerUsername (${_isUserWinner ? "You" : "Other"})');
+        debugPrint('🏆 $winType Winner: $_winnerUsername (${_isUserWinner ? "You" : "Other"})');
         _startSequence();
       } else {
-        debugPrint('⚠️ No housie winner found');
+        debugPrint('⚠️ No winner found');
         _navigateToHome();
       }
     } catch (e) {
