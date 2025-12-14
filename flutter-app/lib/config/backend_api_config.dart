@@ -361,4 +361,23 @@ class BackendApiConfig {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get scratch coupon');
     }
   }
+
+  static Future<Map<String, dynamic>> getUserById({
+    required String token,
+    required String userId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Failed to get user');
+    }
+  }
 }
