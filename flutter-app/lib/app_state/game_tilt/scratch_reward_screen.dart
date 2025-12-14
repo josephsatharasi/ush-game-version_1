@@ -147,7 +147,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
           });
           
           // Auto navigate after showing result
-          Future.delayed(Duration(seconds: 4), () {
+          Future.delayed(Duration(seconds: 6), () {
             if (mounted) {
               Navigator.pushNamedAndRemoveUntil(
                 context,
