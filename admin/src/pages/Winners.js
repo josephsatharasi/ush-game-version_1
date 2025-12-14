@@ -13,6 +13,18 @@ const Winners = () => {
   useEffect(() => {
     fetchGames();
   }, []);
+  
+  useEffect(() => {
+    let pollingInterval;
+    if (selectedGame) {
+      pollingInterval = setInterval(() => {
+        fetchWinners(selectedGame);
+      }, 2000);
+    }
+    return () => {
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
+  }, [selectedGame]);
 
   const fetchGames = async () => {
     try {
@@ -25,17 +37,15 @@ const Winners = () => {
   };
 
   const fetchWinners = async (gameId) => {
-    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/game/${gameId}/winners`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setWinners(response.data.winners || []);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching winners:', error);
-      alert('Error fetching winners');
-    } finally {
       setLoading(false);
     }
   };
