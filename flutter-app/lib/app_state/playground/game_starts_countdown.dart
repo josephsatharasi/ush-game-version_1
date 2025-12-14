@@ -643,49 +643,6 @@ Positioned(
                             ),
                           ),
                         SizedBox(height: 45),
-                        // Card Number section
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Card Number',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        // First row - 3 buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildCardButton('FIRST LINE', Color(0xFF1E3A8A)),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: _buildCardButton('SECOND LINE', Color(0xFF7F1D1D)),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: _buildCardButton('THIRD LINE', Color(0xFF065F46)),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        // Second row - 2 buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildCardButton('JALDHI', Color(0xFF78350F)),
-                            ),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: _buildCardButton('HOUSI', Color(0xFF831843)),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 40),
                       ],
                     ),
                   ),
@@ -698,67 +655,7 @@ Positioned(
     );
   }
 
-  Widget _buildCardButton(String name, Color color) {
-    final isSelected = selectedCardType == name;
-    return GestureDetector(
-      onTap: () async {
-        setState(() {
-          selectedCardType = name;
-        });
-        
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('token');
-        final gameId = prefs.getString('gameId');
-        
-        if (token != null && gameId != null) {
-          try {
-            final winTypeMap = {
-              'FIRST LINE': 'FIRST_LINE',
-              'SECOND LINE': 'SECOND_LINE',
-              'THIRD LINE': 'THIRD_LINE',
-              'JALDHI': 'JALDI',
-              'HOUSI': 'HOUSIE',
-            };
-            
-            final winType = winTypeMap[name];
-            if (winType != null) {
-              await prefs.setString('selectedWinType', winType);
-            }
-          } catch (e) {
-            // Silently fail
-          }
-        }
-      },
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: 3,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            name,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildMiniTicket(List<List<int?>> numbers) {
     return Container(

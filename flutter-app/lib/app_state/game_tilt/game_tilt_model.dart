@@ -9,7 +9,7 @@ class GameTiltModel {
   String gameStatus = 'WAITING';
   Map<String, dynamic>? winners;
   
-  // Line status tracking
+  // Line status tracking - starts as false, only set to true when claimed
   bool firstLineCompleted = false;
   bool secondLineCompleted = false;
   bool thirdLineCompleted = false;
@@ -108,9 +108,17 @@ class GameTiltModel {
   }
   
   bool checkJaldhiCompletion() {
-    if (firstLineNumbers.isEmpty) return false;
-    int count = firstLineNumbers.where((num) => announcedNumbers.contains(num)).length;
-    return count >= 5;
+    // Jaldi: Any ONE complete line (first, second, or third)
+    if (allTicketNumbers.isEmpty) return false;
+    
+    final firstComplete = firstLineNumbers.isNotEmpty && 
+                         firstLineNumbers.every((num) => announcedNumbers.contains(num));
+    final secondComplete = secondLineNumbers.isNotEmpty && 
+                          secondLineNumbers.every((num) => announcedNumbers.contains(num));
+    final thirdComplete = thirdLineNumbers.isNotEmpty && 
+                         thirdLineNumbers.every((num) => announcedNumbers.contains(num));
+    
+    return firstComplete || secondComplete || thirdComplete;
   }
   
   bool checkHousiCompletion() {

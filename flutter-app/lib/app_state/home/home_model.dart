@@ -8,14 +8,6 @@ class HomeModel {
     "Cuppons"
   ];
 
-  static const Map<String, String> winTypeMap = {
-    'FIRST LINE': 'FIRST_LINE',
-    'SECOND LINE': 'SECOND_LINE',
-    'THIRD LINE': 'THIRD_LINE',
-    'JALDHI': 'JALDI',
-    'HOUSI': 'HOUSIE',
-  };
-
   String ticketNumber = '';
   String generatedNumbers = '';
   String currentLocation = 'Fetching location...';

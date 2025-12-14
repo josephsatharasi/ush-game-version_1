@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../services/winner_service.dart';
-import '../../../models/winner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/backend_api_config.dart';
 
 class CouponsWidget extends StatefulWidget {
   const CouponsWidget({super.key});
@@ -10,7 +10,7 @@ class CouponsWidget extends StatefulWidget {
 }
 
 class _CouponsWidgetState extends State<CouponsWidget> {
-  List<Winner> _coupons = [];
+  List<_CouponData> _coupons = [];
   bool _isLoading = true;
   String _searchQuery = '';
 
@@ -22,11 +22,19 @@ class _CouponsWidgetState extends State<CouponsWidget> {
 
   Future<void> _loadCoupons() async {
     try {
-      final winnerService = WinnerService();
-      final coupons = await winnerService.getUserCoupons();
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+      
+      final response = await BackendApiConfig.getMyCoupons(token: token);
+      final List<dynamic> couponsJson = response['coupons'] ?? [];
+      
       if (mounted) {
         setState(() {
-          _coupons = coupons;
+          _coupons = couponsJson.map((json) => _CouponData.fromJson(json)).toList();
           _isLoading = false;
         });
       }
@@ -42,7 +50,7 @@ class _CouponsWidgetState extends State<CouponsWidget> {
     }
   }
 
-  List<Winner> get _filteredCoupons {
+  List<_CouponData> get _filteredCoupons {
     if (_searchQuery.isEmpty) return _coupons;
     return _coupons.where((coupon) {
       final gameCode = coupon.gameCode?.toLowerCase() ?? '';
@@ -125,7 +133,7 @@ class _CouponsWidgetState extends State<CouponsWidget> {
     );
   }
 
-  Widget _buildCouponCard(Winner coupon) {
+  Widget _buildCouponCard(_CouponData coupon) {
     final isAssigned = coupon.status == 'ASSIGNED';
     final statusColor = isAssigned ? Colors.green : Colors.orange;
     final statusText = isAssigned ? 'Available' : 'Pending';
@@ -238,5 +246,37 @@ class _CouponsWidgetState extends State<CouponsWidget> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _CouponData {
+  final String? gameCode;
+  final String? gameId;
+  final String winType;
+  final String? cardNumber;
+  final DateTime? wonAt;
+  final String? couponCode;
+  final String? status;
+
+  _CouponData({
+    this.gameCode,
+    this.gameId,
+    required this.winType,
+    this.cardNumber,
+    this.wonAt,
+    this.couponCode,
+    this.status,
+  });
+
+  factory _CouponData.fromJson(Map<String, dynamic> json) {
+    return _CouponData(
+      gameCode: json['gameCode'],
+      gameId: json['gameId'],
+      winType: json['winType'] ?? '',
+      cardNumber: json['cardNumber'],
+      wonAt: json['wonAt'] != null ? DateTime.parse(json['wonAt']) : null,
+      couponCode: json['couponCode'],
+      status: json['status'],
+    );
   }
 }

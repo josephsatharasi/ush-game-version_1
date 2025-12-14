@@ -7,6 +7,7 @@ import 'game_tilt_model.dart';
 import '../../widgets/loction_header.dart';
 import '../../config/backend_api_config.dart';
 import '../../services/game_number_service.dart';
+import 'winner_screen.dart';
 
 class DottedBackgroundPainter extends CustomPainter {
   @override
@@ -53,6 +54,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   final List<int> _numberQueue = [];
   bool _isProcessingNumber = false;
   String? _userId;
+  Timer? _announcementTimer;
 
   @override
   void initState() {
@@ -84,18 +86,13 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     debugPrint('🔊 TTS: Text-to-speech initialized successfully');
   }
   
+
+  
   Future<void> _loadUserTicket() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       _userId = prefs.getString('userId');
-      
-      // Load saved completion status
-      _model.firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
-      _model.secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
-      _model.thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
-      _model.jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
-      _model.housiCompleted = prefs.getBool('housiCompleted') ?? false;
       
       if (token != null) {
         final result = await BackendApiConfig.getMyBookings(token: token);
@@ -122,6 +119,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     WidgetsBinding.instance.removeObserver(this);
     _animationTimer?.cancel();
     _numberFetchTimer?.cancel();
+    _announcementTimer?.cancel();
     _coinAnimationController.dispose();
     _audioPlayer.dispose();
     _flutterTts.stop();
@@ -157,6 +155,8 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     debugPrint('⏸️ PAUSE: Pausing visual activities only - keeping polling active');
     _animationTimer?.cancel();
     _animationTimer = null;
+    _announcementTimer?.cancel();
+    _announcementTimer = null;
     // Don't cancel number polling - let it continue in background
     // _numberFetchTimer?.cancel();
     // _numberFetchTimer = null;
@@ -334,7 +334,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             return;
           }
           
-          // Check for new number announcement - DON'T use queue, announce immediately
+          // Check for new number announcement - announce immediately
           if (newNumber > 0 && newNumber != _currentNumber) {
             debugPrint('🎆 NEW NUMBER: $newNumber (was $_currentNumber)');
             
@@ -343,10 +343,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               _announcedNumbers = announcedList;
             });
             
-            // Broadcast to all screens via GameNumberService
+            // Broadcast to all screens
             GameNumberService().updateCurrentNumber(newNumber);
+            GameNumberService().updateAnnouncedNumbers(announcedList);
             
-            // Always play audio and TTS for new numbers
+            // Play audio and TTS
             _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
               debugPrint('❌ AUDIO: Error - $e');
             });
@@ -355,7 +356,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               debugPrint('❌ TTS: Error - $e');
             });
             
-            // Only show visual if on game screen
+            // Show visual if on game screen
             if (mounted && !_isAppInBackground) {
               _processNumber(newNumber);
             }
@@ -364,6 +365,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             setState(() {
               _announcedNumbers = announcedList;
             });
+            GameNumberService().updateAnnouncedNumbers(announcedList);
           }
         }
       } catch (e) {
@@ -372,6 +374,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       }
     });
   }
+
 
   void _processNumber(int number) {
     _showCoinPop();
@@ -418,22 +421,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     // Stop all activities
     _pauseAllActivities();
     
-    // Show completion dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('🎉 Game Completed!'),
-        content: const Text('All 90 numbers have been announced. The game has ended.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _exitGame();
-            },
-            child: const Text('Exit to Home'),
-          ),
-        ],
+    // Navigate to winner screen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const WinnerScreen(),
       ),
     );
   }
@@ -566,11 +558,11 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                               // Numbers button
                               Flexible(
                                 child: GestureDetector(
-                                  onTap: () {
+                                  onTap: () async {
                                     debugPrint('🔢 BUTTON: Numbers button tapped');
                                     debugPrint('🔢 BUTTON: Navigating to fam-playground - keeping announcements running');
                                     // Don't stop activities - let them run in background
-                                    Navigator.pushNamed(context, '/fam-playground');
+                                    await Navigator.pushNamed(context, '/fam-playground');
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
@@ -727,52 +719,90 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
     );
   }
 
-  Future<void> _handleLineButtonTap(String lineType) async {
+   Future<void> _handleLineButtonTap(String lineType) async {
     debugPrint('🎯 BUTTON: $lineType tapped');
     
-    bool isCompleted = false;
+    // Check if already completed
+    bool alreadyClaimed = false;
     switch (lineType) {
       case 'FIRST LINE':
-        isCompleted = _model.checkLineCompletion('FIRST LINE');
-        if (isCompleted && !_model.firstLineCompleted) {
-          await _claimWin(lineType);
-        }
+        alreadyClaimed = _model.firstLineCompleted;
         break;
       case 'SECOND LINE':
-        isCompleted = _model.checkLineCompletion('SECOND LINE');
-        if (isCompleted && !_model.secondLineCompleted) {
-          await _claimWin(lineType);
-        }
+        alreadyClaimed = _model.secondLineCompleted;
         break;
       case 'THIRD LINE':
-        isCompleted = _model.checkLineCompletion('THIRD LINE');
-        if (isCompleted && !_model.thirdLineCompleted) {
-          await _claimWin(lineType);
-        }
+        alreadyClaimed = _model.thirdLineCompleted;
         break;
       case 'JALDHI':
-        isCompleted = _model.checkJaldhiCompletion();
-        if (isCompleted && !_model.jaldhiCompleted) {
-          await _claimWin(lineType);
-        }
+        alreadyClaimed = _model.jaldhiCompleted;
         break;
       case 'HOUSI':
-        isCompleted = _model.checkHousiCompletion();
-        if (isCompleted && !_model.housiCompleted) {
-          await _claimWin(lineType);
-        }
+        alreadyClaimed = _model.housiCompleted;
         break;
     }
     
-    if (!isCompleted) {
+    if (alreadyClaimed) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$lineType not completed yet!'),
+          content: Text('$lineType already claimed!'),
+          backgroundColor: Colors.grey,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
+    // Load marked numbers to validate
+    final prefs = await SharedPreferences.getInstance();
+    final markedList = prefs.getStringList('markedNumbers') ?? [];
+    final markedNumbers = markedList.map((e) => int.parse(e)).toSet();
+    
+    // Get line numbers
+    List<int> lineNumbers = [];
+    switch (lineType) {
+      case 'FIRST LINE':
+        lineNumbers = _model.firstLineNumbers;
+        break;
+      case 'SECOND LINE':
+        lineNumbers = _model.secondLineNumbers;
+        break;
+      case 'THIRD LINE':
+        lineNumbers = _model.thirdLineNumbers;
+        break;
+      case 'JALDHI':
+      case 'HOUSI':
+        lineNumbers = _model.allTicketNumbers;
+        break;
+    }
+    
+    // Validate: all line numbers must be announced AND marked
+    bool allAnnounced = lineNumbers.every((num) => _announcedNumbers.contains(num));
+    bool allMarked = lineNumbers.every((num) => markedNumbers.contains(num));
+    
+    if (!allAnnounced) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$lineType not completed yet! Wait for all numbers.'),
           backgroundColor: Colors.orange,
           duration: Duration(seconds: 2),
         ),
       );
+      return;
     }
+    
+    if (!allMarked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please mark all numbers in the number board first!'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    
+    await _claimWin(lineType);
   }
   
   Future<void> _claimWin(String winType) async {
@@ -840,7 +870,12 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         // Navigate to winner screen for HOUSI
         if (winType == 'HOUSI') {
           stopGameCompletely();
-          Navigator.pushNamed(context, '/winner-screen');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const WinnerScreen(),
+            ),
+          );
         }
       }
     } catch (e) {

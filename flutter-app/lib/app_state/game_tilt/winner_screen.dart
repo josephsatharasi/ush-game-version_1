@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ush_app/widgets/loction_header.dart';
 import 'package:ush_app/app_state/game_tilt/scratch_reward_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../config/backend_api_config.dart';
 
 class WinnerScreen extends StatefulWidget {
   final String? winnerUsername;
@@ -26,18 +27,59 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _checkIfUserWon();
+    _fetchWinnerAndCheck();
   }
 
-  Future<void> _checkIfUserWon() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
-    
-    setState(() {
-      _isUserWinner = userId != null && widget.winnerUserId == userId;
-    });
-    
-    _startSequence();
+  Future<void> _fetchWinnerAndCheck() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      final token = prefs.getString('token');
+      final gameId = prefs.getString('gameId');
+      
+      if (token == null || gameId == null) {
+        _navigateToHome();
+        return;
+      }
+      
+      // Fetch winners from backend
+      final response = await BackendApiConfig.getWinners(
+        token: token,
+        gameId: gameId,
+      );
+      
+      final winners = response['winners'] as List;
+      final housieWinner = winners.firstWhere(
+        (w) => w['winType'] == 'HOUSIE',
+        orElse: () => null,
+      );
+      
+      if (housieWinner != null) {
+        final winnerUserId = housieWinner['userId'];
+        final winnerUsername = housieWinner['username'] ?? 'Unknown';
+        
+        setState(() {
+          _isUserWinner = userId == winnerUserId;
+        });
+        
+        _startSequence();
+      } else {
+        _navigateToHome();
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to fetch winner: $e');
+      _navigateToHome();
+    }
+  }
+  
+  void _navigateToHome() {
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/home',
+        (route) => false,
+      );
+    }
   }
 
   void _startSequence() {

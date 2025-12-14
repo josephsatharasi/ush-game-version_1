@@ -28,8 +28,9 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   @override
   void initState() {
     super.initState();
-    _loadCompletionStatus();
+    _checkAndClearOldGameData();
     _loadTicketNumbers();
+    _loadMarkedNumbers();
     _numberSubscription = GameNumberService().numberStream.listen((number) {
       if (mounted) {
         setState(() {});
@@ -37,16 +38,7 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
     });
   }
   
-  Future<void> _loadCompletionStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _firstLineCompleted = prefs.getBool('firstLineCompleted') ?? false;
-      _secondLineCompleted = prefs.getBool('secondLineCompleted') ?? false;
-      _thirdLineCompleted = prefs.getBool('thirdLineCompleted') ?? false;
-      _jaldhiCompleted = prefs.getBool('jaldhiCompleted') ?? false;
-      _housiCompleted = prefs.getBool('housiCompleted') ?? false;
-    });
-  }
+
 
   Future<void> _loadTicketNumbers() async {
     try {
@@ -80,6 +72,48 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
       }
     } catch (e) {
       debugPrint('Failed to load ticket numbers: $e');
+    }
+  }
+  
+  Future<void> _checkAndClearOldGameData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentGameId = prefs.getString('gameId');
+      final savedGameId = prefs.getString('lastMarkedGameId');
+      
+      if (currentGameId != savedGameId) {
+        debugPrint('🆕 New game detected - clearing old marked numbers');
+        await prefs.remove('markedNumbers');
+        await prefs.setString('lastMarkedGameId', currentGameId ?? '');
+      }
+    } catch (e) {
+      debugPrint('Failed to check game data: $e');
+    }
+  }
+  
+  Future<void> _loadMarkedNumbers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final markedList = prefs.getStringList('markedNumbers') ?? [];
+      if (mounted) {
+        setState(() {
+          _blockedNumbers.clear();
+          _blockedNumbers.addAll(markedList.map((e) => int.parse(e)));
+        });
+      }
+      debugPrint('💾 Loaded ${_blockedNumbers.length} marked numbers from storage');
+    } catch (e) {
+      debugPrint('Failed to load marked numbers: $e');
+    }
+  }
+  
+  Future<void> _saveMarkedNumbers() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('markedNumbers', _blockedNumbers.map((e) => e.toString()).toList());
+      debugPrint('💾 Saved ${_blockedNumbers.length} marked numbers to storage');
+    } catch (e) {
+      debugPrint('Failed to save marked numbers: $e');
     }
   }
 
@@ -247,11 +281,12 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   }
 
   Widget _buildNumberButton(int number) {
-    final isClicked = _blockedNumbers.contains(number);
+    final isAnnounced = GameNumberService().announcedNumbers.contains(number);
     final isTicketNumber = _model.isNumberSelected(number);
+    final isClicked = _blockedNumbers.contains(number);
     
     return GestureDetector(
-      onTap: isTicketNumber ? () {
+      onTap: (isTicketNumber && isAnnounced) ? () {
         setState(() {
           if (_blockedNumbers.contains(number)) {
             _blockedNumbers.remove(number);
@@ -259,6 +294,7 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
             _blockedNumbers.add(number);
           }
         });
+        _saveMarkedNumbers();
       } : null,
       child: Container(
         decoration: BoxDecoration(
@@ -325,7 +361,6 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   }
 
   Widget _buildGameButton(String name, Color color, String? number) {
-    final isSelected = _gameType == name;
     bool isCompleted = false;
     
     switch (name) {
@@ -347,18 +382,14 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
     }
     
     return GestureDetector(
-      onTap: () {
-        Navigator.pop(context);
+      onTap: () async {
+        await _handleLineButtonTap(name);
       },
       child: Container(
         height: 50,
         decoration: BoxDecoration(
           color: isCompleted ? Colors.grey : color,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: 3,
-          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black26,
@@ -409,5 +440,184 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
         ),
       ),
     );
+  }
+  
+  Future<void> _handleLineButtonTap(String lineType) async {
+    // Check if already claimed
+    bool alreadyClaimed = false;
+    switch (lineType) {
+      case 'FIRST LINE':
+        alreadyClaimed = _firstLineCompleted;
+        break;
+      case 'SECOND LINE':
+        alreadyClaimed = _secondLineCompleted;
+        break;
+      case 'THIRD LINE':
+        alreadyClaimed = _thirdLineCompleted;
+        break;
+      case 'JALDHI':
+        alreadyClaimed = _jaldhiCompleted;
+        break;
+      case 'HOUSI':
+        alreadyClaimed = _housiCompleted;
+        break;
+    }
+    
+    if (alreadyClaimed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$lineType already claimed!'), backgroundColor: Colors.grey, duration: Duration(seconds: 2)),
+        );
+      }
+      return;
+    }
+    
+    // Get line numbers from ticket
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    if (token == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please login first'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+    
+    // Load ticket to get line numbers
+    List<int> lineNumbers = [];
+    try {
+      final result = await BackendApiConfig.getMyBookings(token: token);
+      final bookingsList = result['bookings'] as List;
+      
+      if (bookingsList.isNotEmpty) {
+        final booking = bookingsList.first;
+        final generatedNumbers = booking['generatedNumbers'] as List?;
+        
+        if (generatedNumbers != null && generatedNumbers.isNotEmpty) {
+          final firstTicket = generatedNumbers[0] as Map<String, dynamic>;
+          final firstLine = (firstTicket['firstLine'] as List?)?.cast<int>() ?? [];
+          final secondLine = (firstTicket['secondLine'] as List?)?.cast<int>() ?? [];
+          final thirdLine = (firstTicket['thirdLine'] as List?)?.cast<int>() ?? [];
+          
+          switch (lineType) {
+            case 'FIRST LINE':
+              lineNumbers = firstLine;
+              break;
+            case 'SECOND LINE':
+              lineNumbers = secondLine;
+              break;
+            case 'THIRD LINE':
+              lineNumbers = thirdLine;
+              break;
+            case 'JALDHI':
+            case 'HOUSI':
+              lineNumbers = [...firstLine, ...secondLine, ...thirdLine];
+              break;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to load ticket: $e');
+    }
+    
+    if (lineNumbers.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load ticket numbers'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+    
+    // Validate: all line numbers must be announced AND marked
+    final announcedNumbers = GameNumberService().announcedNumbers;
+    bool allAnnounced = lineNumbers.every((num) => announcedNumbers.contains(num));
+    bool allMarked = lineNumbers.every((num) => _blockedNumbers.contains(num));
+    
+    if (!allAnnounced) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$lineType not completed yet! Wait for all numbers.'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+        );
+      }
+      return;
+    }
+    
+    if (!allMarked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please mark all numbers first!'), backgroundColor: Colors.orange, duration: Duration(seconds: 2)),
+        );
+      }
+      return;
+    }
+    
+    final gameId = prefs.getString('gameId');
+    final cardNumber = prefs.getString('cardNumber');
+    
+    if (token == null || gameId == null || cardNumber == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Missing credentials'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+    
+    final winTypeMap = {
+      'FIRST LINE': 'FIRST_LINE',
+      'SECOND LINE': 'SECOND_LINE',
+      'THIRD LINE': 'THIRD_LINE',
+      'JALDHI': 'JALDI',
+      'HOUSI': 'HOUSIE',
+    };
+    
+    try {
+      await BackendApiConfig.claimWin(
+        token: token,
+        gameId: gameId,
+        winType: winTypeMap[lineType]!,
+        cardNumber: cardNumber,
+      );
+      
+      if (mounted) {
+        setState(() {
+          switch (lineType) {
+            case 'FIRST LINE':
+              _firstLineCompleted = true;
+              prefs.setBool('firstLineCompleted', true);
+              break;
+            case 'SECOND LINE':
+              _secondLineCompleted = true;
+              prefs.setBool('secondLineCompleted', true);
+              break;
+            case 'THIRD LINE':
+              _thirdLineCompleted = true;
+              prefs.setBool('thirdLineCompleted', true);
+              break;
+            case 'JALDHI':
+              _jaldhiCompleted = true;
+              prefs.setBool('jaldhiCompleted', true);
+              break;
+            case 'HOUSI':
+              _housiCompleted = true;
+              prefs.setBool('housiCompleted', true);
+              break;
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('🎉 $lineType claimed successfully!'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }
