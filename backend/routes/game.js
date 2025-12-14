@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const cardGenerator = require('../services/cardGenerator');
 const winValidator = require('../services/winValidator');
 const couponGenerator = require('../services/couponGenerator');
+const autoCouponGenerator = require('../services/autoCouponGenerator');
 const TicketCleanupService = require('../services/ticketCleanup');
 const router = express.Router();
 
@@ -481,12 +482,19 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     const winnerField = winTypeMap[winType];
     if (winnerField) {
       console.log(`🎯 Setting ${winnerField} for game ${gameId}`);
+      
+      // Auto-generate coupon code
+      const couponCode = autoCouponGenerator.generateCoupon(winType);
+      const couponValue = autoCouponGenerator.getCouponValue(winType);
+      
       game[winnerField] = {
         userId,
         cardNumber: cardNumber,
         wonAt: new Date(),
-        couponCode: null
+        couponCode: couponCode,
+        couponValue: couponValue
       };
+      console.log(`🎟️ Auto-generated coupon: ${couponCode} (Value: ₹${couponValue})`);
       console.log(`💾 Saving game with winner field: ${winnerField}`);
     }
     await game.save();
@@ -496,7 +504,9 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     console.log(`📤 Sending success response to client\n`);
     res.json({
       valid: true,
-      message: 'Congratulations! You won! Admin will assign your coupon code soon.'
+      message: 'Congratulations! You won!',
+      couponCode: game[winnerField]?.couponCode,
+      couponValue: game[winnerField]?.couponValue
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

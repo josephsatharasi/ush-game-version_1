@@ -575,12 +575,19 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
     };
     
     try {
-      await BackendApiConfig.claimWin(
+      final response = await BackendApiConfig.claimWin(
         token: token,
         gameId: gameId,
         winType: winTypeMap[lineType]!,
         cardNumber: cardNumber,
       );
+      
+      // Save coupon data from response
+      if (response['couponCode'] != null) {
+        await prefs.setString('wonCouponCode', response['couponCode']);
+        await prefs.setInt('wonCouponValue', response['couponValue'] ?? 0);
+        debugPrint('🎟️ Coupon saved: ${response['couponCode']} - ₹${response['couponValue']}');
+      }
       
       if (mounted) {
         setState(() {

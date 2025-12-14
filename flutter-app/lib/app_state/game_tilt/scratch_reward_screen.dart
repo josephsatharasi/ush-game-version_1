@@ -84,35 +84,36 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
   Future<void> _fetchCouponData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
+      final couponCode = prefs.getString('wonCouponCode');
+      final couponValue = prefs.getInt('wonCouponValue');
       
-      if (token != null) {
-        final response = await BackendApiConfig.getScratchCoupon(token: token);
+      if (couponCode != null && couponValue != null) {
         if (mounted) {
           setState(() {
-            _couponData = response['coupon'];
-            _rewardAmount = _couponData?['amount'] ?? '₹0';
-            _rewardCode = _couponData?['code'] ?? 'NO_CODE';
-            _hasWon = _couponData?['hasWon'] ?? false;
+            _rewardAmount = '₹$couponValue';
+            _rewardCode = couponCode;
+            _hasWon = true;
             _isLoading = false;
           });
         }
       } else {
-        // Mock data for testing
-        setState(() {
-          _rewardAmount = '₹500';
-          _rewardCode = 'KANUSH35';
-          _hasWon = true;
-          _isLoading = false;
-        });
+        // No coupon found
+        if (mounted) {
+          setState(() {
+            _rewardAmount = '₹0';
+            _rewardCode = 'NO_CODE';
+            _hasWon = false;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      // Fallback to mock data
+      debugPrint('❌ Failed to load coupon: $e');
       if (mounted) {
         setState(() {
-          _rewardAmount = '₹500';
-          _rewardCode = 'KANUSH35';
-          _hasWon = true;
+          _rewardAmount = '₹0';
+          _rewardCode = 'NO_CODE';
+          _hasWon = false;
           _isLoading = false;
         });
       }

@@ -833,6 +833,13 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         cardNumber: cardNumber,
       );
       
+      // Save coupon data from response
+      if (response['couponCode'] != null) {
+        await prefs.setString('wonCouponCode', response['couponCode']);
+        await prefs.setInt('wonCouponValue', response['couponValue'] ?? 0);
+        debugPrint('🎟️ Coupon saved: ${response['couponCode']} - ₹${response['couponValue']}');
+      }
+      
       if (mounted) {
         setState(() {
           switch (winType) {
