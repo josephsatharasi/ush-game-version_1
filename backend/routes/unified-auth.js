@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const config = require('../config/environment');
 const Account = require('../models/Account');
 const { sendOTP } = require('../utils/sms');
 const router = express.Router();
@@ -52,7 +53,7 @@ router.post('/verify-otp', async (req, res) => {
     account.lastLogin = new Date();
     await account.save();
 
-    const token = jwt.sign({ id: account._id, role: account.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: account._id, role: account.role }, config.JWT_SECRET, { expiresIn: '7d' });
     
     res.json({ 
       token, 
@@ -81,7 +82,7 @@ router.post('/login', async (req, res) => {
     account.lastLogin = new Date();
     await account.save();
 
-    const token = jwt.sign({ id: account._id, role: account.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: account._id, role: account.role }, config.JWT_SECRET, { expiresIn: '7d' });
     
     res.json({ 
       token, 
