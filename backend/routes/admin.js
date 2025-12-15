@@ -18,16 +18,15 @@ router.get('/bookings', requireRole(['admin']), async (req, res) => {
       .sort({ bookedAt: -1 });
 
     const formattedBookings = bookings.map(booking => ({
-      id: booking._id,
-      ticketNumber: booking.ticketNumber,
-      cardNumber: booking.cardNumber,
+      _id: booking._id,
       username: booking.userId?.username || 'Unknown',
       phone: booking.userId?.phone || 'N/A',
-      gameName: booking.gameId?.name || 'Unknown Game',
-      timeSlot: booking.gameId?.scheduledTime || null,
+      cardNumbers: booking.cardNumbers || [],
+      gameCode: booking.gameCode,
+      timeSlot: booking.timeSlot,
+      weekDay: booking.weekDay,
       status: booking.status,
-      bookedAt: booking.bookedAt,
-      deliveredAt: booking.deliveredAt
+      bookedAt: booking.bookedAt
     }));
 
     res.json({ bookings: formattedBookings });

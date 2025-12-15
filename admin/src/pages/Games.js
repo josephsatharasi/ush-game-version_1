@@ -56,11 +56,10 @@ const Games = () => {
         { additionalSlots: parseInt(newSlots) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert('✅ Slots updated successfully!');
       setEditModal(null);
       fetchGames();
     } catch (err) {
-      alert('❌ Failed to update slots: ' + err.message);
+      console.error('Failed to update slots:', err);
     }
   };
 
@@ -74,7 +73,7 @@ const Games = () => {
       setTimeSlotModal({ game, config: res.data.config });
       setNewTimeSlots([]);
     } catch (err) {
-      alert('❌ Failed to load time slots: ' + err.message);
+      console.error('Failed to load time slots:', err);
     }
   };
 
@@ -98,11 +97,10 @@ const Games = () => {
         { newTimeSlots },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert('✅ Time slots added successfully!');
       setTimeSlotModal(null);
       setNewTimeSlots([]);
     } catch (err) {
-      alert('❌ Failed to add time slots: ' + err.message);
+      console.error('Failed to add time slots:', err);
     }
   };
 
@@ -114,10 +112,9 @@ const Games = () => {
         `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${timeSlotModal.game._id}/time-slots/${encodeURIComponent(timeSlot)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert('✅ Time slot removed!');
       handleManageTimeSlots(timeSlotModal.game);
     } catch (err) {
-      alert('❌ Failed to remove time slot: ' + err.message);
+      console.error('Failed to remove time slot:', err);
     }
   };
 

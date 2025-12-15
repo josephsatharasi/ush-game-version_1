@@ -19,6 +19,7 @@ const Tickets = () => {
       const res = await axios.get(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/bookings`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('Bookings data:', res.data.bookings);
       setTickets(res.data.bookings);
     } catch (err) {
       console.error('Failed to fetch bookings:', err);
@@ -39,17 +40,15 @@ const Tickets = () => {
     }
   };
 
-  const displayTickets = tickets.map(t => ({
+  const displayTickets = tickets.map((t, index) => ({
     id: t._id,
-    ticketNumbers: t.ticketNumbers || [],
+    ticketNumber: index + 1,
     cardNumbers: t.cardNumbers || [],
-    generatedNumbers: t.generatedNumbers || [],
     userName: t.username,
     phone: t.phone,
     gameType: t.gameCode || 'Live Game',
     weekDay: t.weekDay,
     timeSlot: t.timeSlot,
-    ticketCount: t.ticketCount,
     status: t.status === 'DELIVERED' ? 'Active' : 'Pending',
     purchaseDate: new Date(t.bookedAt).toLocaleDateString()
   }));
@@ -132,7 +131,6 @@ const Tickets = () => {
                 <th className="text-left py-3 px-4 font-medium text-gray-700">User</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Tickets</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Card Numbers</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Generated Numbers</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Game</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Day & Time</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
@@ -141,9 +139,9 @@ const Tickets = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="9" className="text-center py-4">Loading...</td></tr>
+                <tr><td colSpan="7" className="text-center py-4">Loading...</td></tr>
               ) : displayTickets.length === 0 ? (
-                <tr><td colSpan="9" className="text-center py-8 text-gray-500">No tickets found. Bookings will appear here once users book tickets.</td></tr>
+                <tr><td colSpan="7" className="text-center py-8 text-gray-500">No tickets found. Bookings will appear here once users book tickets.</td></tr>
               ) : displayTickets.map((ticket) => (
                 <tr key={ticket.id} className="border-b hover:bg-gray-50">
                   <td className="py-3 px-4">
@@ -153,57 +151,24 @@ const Tickets = () => {
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    <div className="space-y-1">
-                      <div className="text-xs text-gray-500">Count: {ticket.ticketCount}</div>
-                      {ticket.ticketNumbers.slice(0, 2).map((tn, i) => (
-                        <div key={i} className="font-mono text-xs">{tn}</div>
-                      ))}
-                      {ticket.ticketNumbers.length > 2 && (
-                        <div className="text-xs text-blue-600">+{ticket.ticketNumbers.length - 2} more</div>
-                      )}
-                    </div>
+                    <div className="font-medium text-gray-800">{ticket.ticketNumber}</div>
                   </td>
                   <td className="py-3 px-4">
                     <div className="space-y-1">
-                      {ticket.cardNumbers.slice(0, 2).map((cn, i) => (
-                        <div key={i} className="font-mono text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-1 rounded">
+                      {ticket.cardNumbers.map((cn, i) => (
+                        <div key={i} className="font-mono text-sm font-semibold text-purple-700">
                           {cn}
                         </div>
                       ))}
-                      {ticket.cardNumbers.length > 2 && (
-                        <div className="text-xs text-purple-600">+{ticket.cardNumbers.length - 2} more</div>
-                      )}
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    <div className="max-w-xs">
-                      {ticket.generatedNumbers.slice(0, 1).map((nums, i) => (
-                        <div key={i} className="flex flex-wrap gap-1">
-                          {nums.split(',').slice(0, 8).map((num, j) => (
-                            <span key={j} className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-mono">
-                              {num.trim()}
-                            </span>
-                          ))}
-                          {nums.split(',').length > 8 && (
-                            <span className="text-xs text-gray-500">+{nums.split(',').length - 8}</span>
-                          )}
-                        </div>
-                      ))}
-                      {ticket.generatedNumbers.length > 1 && (
-                        <div className="text-xs text-blue-600 mt-1">+{ticket.generatedNumbers.length - 1} more tickets</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
+                    <span className="inline-block px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800 whitespace-nowrap">
                       {ticket.gameType}
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <div className="text-sm">
-                      <div className="font-medium">{ticket.weekDay}</div>
-                      <div className="text-xs text-gray-500">{ticket.timeSlot}</div>
-                    </div>
+                    <div className="text-sm">{ticket.timeSlot}</div>
                   </td>
                   <td className="py-3 px-4">
                     <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(ticket.status)}`}>

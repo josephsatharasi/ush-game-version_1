@@ -70,9 +70,17 @@ const CreateGame = () => {
 
     try {
       const token = localStorage.getItem('token');
+      console.log('Using token:', token);
+      console.log('API URL:', process.env.REACT_APP_API_URL);
+      
+      if (!token) {
+        setMessage('❌ No authentication token found. Please login again.');
+        setLoading(false);
+        return;
+      }
       
       // Create game first
-      const gameResponse = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/create`, {
+      const gameResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/games/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -94,7 +102,7 @@ const CreateGame = () => {
       }
 
       // Configure slots
-      const configResponse = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${gameData.game._id}/configure-slots`, {
+      const configResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/games/${gameData.game._id}/configure-slots`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
