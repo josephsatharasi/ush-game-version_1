@@ -1,4 +1,5 @@
 const express = require('express');
+const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const socketIO = require('socket.io');
@@ -33,19 +34,18 @@ scheduleCleanup();
 
 const app = express();
 
-// HTTPS ONLY - No HTTP support
-// Supports both api.vspaze.com and admin.vspaze.com
-const sslOptions = config.NODE_ENV === 'production' 
-  ? {
-      key: fs.readFileSync('C:\\ssl\\privkey.pem'),
-      cert: fs.readFileSync('C:\\ssl\\fullchain.pem')
-    }
-  : {
-      key: fs.readFileSync(path.join(__dirname, 'ssl', 'localhost-key.pem')),
-      cert: fs.readFileSync(path.join(__dirname, 'ssl', 'localhost.pem'))
-    };
-
-const server = https.createServer(sslOptions, app);
+// Use HTTP for local, HTTPS for production
+let server;
+if (config.NODE_ENV === 'production') {
+  const sslOptions = {
+    key: fs.readFileSync('C:\\ssl\\privkey.pem'),
+    cert: fs.readFileSync('C:\\ssl\\fullchain.pem')
+  };
+  server = https.createServer(sslOptions, app);
+} else {
+  // Local development - use HTTP
+  server = http.createServer(app);
+}
 
 const io = socketIO(server, {
   cors: {
@@ -53,7 +53,7 @@ const io = socketIO(server, {
     methods: ['GET', 'POST']
   },
   transports: ['websocket', 'polling'],
-  secure: true
+  secure: config.NODE_ENV === 'production'
 });
 
 const gameEngine = new GameEngine(io);
@@ -64,11 +64,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Strict HTTPS enforcement
-app.use((req, res, next) => {
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  next();
-});
+// Strict HTTPS enforcement (production only)
+if (config.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+  });
+}
 
 const adminAuthRoutes = require('./routes/admin-auth');
 
