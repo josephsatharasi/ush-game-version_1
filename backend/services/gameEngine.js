@@ -109,7 +109,10 @@ class GameEngine {
         const number = game.generatedNumbers[game.currentIndex];
         console.log(`🔢 Game ${gameId}: Number to announce: ${number}`);
         
-        game.announcedNumbers.push(number);
+        // CRITICAL FIX: Only push if not already in array (prevent duplicates)
+        if (!game.announcedNumbers.includes(number)) {
+          game.announcedNumbers.push(number);
+        }
         game.currentNumber = number;
         game.currentIndex += 1;
         

@@ -49,10 +49,9 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
   final AudioPlayer _audioPlayer = AudioPlayer();
   final FlutterTts _flutterTts = FlutterTts();
   int _currentNumber = 0;
+  int _lastAnnouncedNumber = 0; // Track last announced to prevent duplicates
   List<int> _announcedNumbers = [];
   bool _isAppInBackground = false;
-  final List<int> _numberQueue = [];
-  bool _isProcessingNumber = false;
   String? _userId;
   Timer? _announcementTimer;
 
@@ -381,7 +380,6 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             _numberFetchTimer?.cancel();
             _numberFetchTimer = null;
-            _numberQueue.clear();
             _handleGameCompletion();
             return;
           }
@@ -397,12 +395,15 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             return;
           }
           
-          // Check for new number announcement - announce immediately
-          if (newNumber > 0 && newNumber != _currentNumber) {
+          // CRITICAL: Announce ONLY if number changed AND not already announced
+          if (newNumber > 0 && newNumber != _lastAnnouncedNumber) {
             debugPrint('🎆 🎆 🎆 NEW NUMBER DETECTED 🎆 🎆 🎆');
-            debugPrint('🎯 Number: $newNumber (Previous: $_currentNumber)');
+            debugPrint('🎯 Number: $newNumber (Last Announced: $_lastAnnouncedNumber)');
             debugPrint('🔊 Playing audio and TTS announcement');
             debugPrint('🪙 Showing coin animation');
+            
+            // Update BOTH current and last announced
+            _lastAnnouncedNumber = newNumber;
             
             setState(() {
               _currentNumber = newNumber;
@@ -413,7 +414,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             GameNumberService().updateCurrentNumber(newNumber);
             GameNumberService().updateAnnouncedNumbers(announcedList);
             
-            // Play audio and TTS
+            // Play audio and TTS ONCE
             _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
               debugPrint('❌ AUDIO ERROR: $e');
             });
@@ -422,7 +423,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               debugPrint('❌ TTS ERROR: $e');
             });
             
-            // Show visual if on game screen
+            // Show visual ONCE
             if (mounted && !_isAppInBackground) {
               _processNumber(newNumber);
               debugPrint('✅ Coin animation triggered');
@@ -430,16 +431,20 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               debugPrint('⏭️ Skipping animation - mounted: $mounted, background: $_isAppInBackground');
             }
             debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-          } else if (announcedList.length != _announcedNumbers.length) {
-            debugPrint('📝 LIST SYNC: Updated announced list (${_announcedNumbers.length} → ${announcedList.length})');
-            setState(() {
-              _announcedNumbers = announcedList;
-            });
-            GameNumberService().updateAnnouncedNumbers(announcedList);
-            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           } else {
-            debugPrint('⏸️ No changes detected - waiting for next poll');
-            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            // Silent sync - update list without announcement
+            if (announcedList.length != _announcedNumbers.length) {
+              setState(() {
+                _announcedNumbers = announcedList;
+              });
+              GameNumberService().updateAnnouncedNumbers(announcedList);
+            }
+            // Update current number silently if changed (but already announced)
+            if (newNumber > 0 && newNumber != _currentNumber) {
+              setState(() {
+                _currentNumber = newNumber;
+              });
+            }
           }
         }
       } catch (e) {

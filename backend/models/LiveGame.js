@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 
 const winnerSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  username: String,
   cardNumber: String,
   wonAt: Date,
-  couponCode: String
+  couponCode: String,
+  couponValue: Number
 }, { _id: false });
 
 const liveGameSchema = new mongoose.Schema({
