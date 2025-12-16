@@ -59,7 +59,7 @@ router.post('/register', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(config.OTP_EXPIRY || 300000));
+    const otpExpiry = new Date(Date.now() + (parseInt(config.OTP_EXPIRY) || 300000));
 
     account = new Account({ 
       username, 
@@ -124,7 +124,7 @@ router.post('/resend-otp', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(config.OTP_EXPIRY || 300000));
+    const otpExpiry = new Date(Date.now() + (parseInt(config.OTP_EXPIRY) || 300000));
 
     account.otp = otp;
     account.otpExpiry = otpExpiry;

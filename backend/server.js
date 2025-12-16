@@ -1,7 +1,9 @@
 const express = require('express');
-const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const socketIO = require('socket.io');
 const cors = require('cors');
+const path = require('path');
 const config = require('./config/environment');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
@@ -30,12 +32,28 @@ connectDB().then(async () => {
 scheduleCleanup();
 
 const app = express();
-const server = http.createServer(app);
+
+// HTTPS ONLY - No HTTP support
+// Supports both api.vspaze.com and admin.vspaze.com
+const sslOptions = config.NODE_ENV === 'production' 
+  ? {
+      key: fs.readFileSync('C:\\ssl\\privkey.pem'),
+      cert: fs.readFileSync('C:\\ssl\\fullchain.pem')
+    }
+  : {
+      key: fs.readFileSync(path.join(__dirname, 'ssl', 'localhost-key.pem')),
+      cert: fs.readFileSync(path.join(__dirname, 'ssl', 'localhost.pem'))
+    };
+
+const server = https.createServer(sslOptions, app);
+
 const io = socketIO(server, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
-  }
+  },
+  transports: ['websocket', 'polling'],
+  secure: true
 });
 
 const gameEngine = new GameEngine(io);
@@ -46,6 +64,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Strict HTTPS enforcement
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
 const adminAuthRoutes = require('./routes/admin-auth');
 
 app.use('/api/auth', unifiedAuthRoutes);
@@ -55,8 +79,16 @@ app.use('/api/game', (req, res, next) => { req.app.set('io', io); next(); }, gam
 app.use('/api/coupons', couponRoutes);
 app.use('/api/admin', adminRoutes);
 
+// Serve admin panel static files
+app.use(express.static(path.join(__dirname, '../admin/build')));
+
 app.get('/', (req, res) => {
   res.json({ message: 'Ush Game Backend API - Version 1' });
+});
+
+// Catch-all route for React Router (must be after API routes)
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin/build', 'index.html'));
 });
 
 // Socket.IO connection

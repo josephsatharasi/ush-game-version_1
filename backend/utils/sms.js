@@ -8,10 +8,11 @@ const sendOTP = async (phone, otp) => {
     }
     
     const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
     await client.messages.create({
       body: `Your Ush Game OTP is ${otp}. This code is valid for 60 seconds. Do not share this code with anyone.`,
       from: process.env.TWILIO_PHONE_NUMBER,
-      to: `+91${phone}`
+      to: formattedPhone
     });
     return true;
   } catch (error) {

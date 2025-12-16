@@ -75,8 +75,10 @@ class GameEngine {
           return;
         }
 
-        // ✅ CRITICAL FIX: Robust validation for housie winner
-        const hasHousieWinner = !!(game.housieWinner?.userId && game.housieWinner?.cardNumber);
+        // CRITICAL: Robust validation for housie winner
+        const hasValidHousieWinner = game.housieWinner && 
+                                     game.housieWinner.userId && 
+                                     game.housieWinner.userId.toString().length > 20; // MongoDB ObjectId is 24 chars
         const allNumbersAnnounced = game.currentIndex >= 90;
         
         console.log(`🔍 Game ${gameId}: End conditions check:`);
@@ -84,12 +86,13 @@ class GameEngine {
         console.log(`   - Announced Count: ${game.announcedNumbers.length}`);
         console.log(`   - Housie Winner exists: ${!!game.housieWinner}`);
         console.log(`   - Housie Winner userId: ${game.housieWinner?.userId || 'NONE'}`);
-        console.log(`   - Valid Housie Winner: ${hasHousieWinner}`);
+        console.log(`   - Valid Housie Winner: ${hasValidHousieWinner}`);
         console.log(`   - All Numbers Announced: ${allNumbersAnnounced}`);
         
-        // ✅ PERMANENT FIX: ONLY end game if HOUSIE winner found OR all 90 numbers announced
-        if (hasHousieWinner || allNumbersAnnounced) {
-          console.log(`🏁 Game ${gameId}: ENDING GAME - HousieWinner=${hasHousieWinner}, AllNumbersAnnounced=${allNumbersAnnounced}`);
+        // ONLY end game if HOUSIE winner found OR all 90 numbers announced
+        if (hasValidHousieWinner || allNumbersAnnounced) {
+          console.log(`🏁 Game ${gameId}: ENDING GAME`);
+          console.log(`   - Reason: ${hasValidHousieWinner ? 'HOUSIE WINNER FOUND' : 'ALL 90 NUMBERS ANNOUNCED'}`);
           clearInterval(interval);
           this.activeGames.delete(gameId);
           await this.endGame(gameId);
@@ -138,10 +141,7 @@ class GameEngine {
   }
 
   async endGame(gameId) {
-    console.log(`\n🏁🏁🏁 Game ${gameId}: endGame() called 🏁🏁🏁`);
-    console.log(`Stack trace to see who called endGame:`);
-    console.trace();
-    
+    console.log(`\n🏁 Game ${gameId}: endGame() called`);
     const interval = this.activeGames.get(gameId);
     if (interval) {
       console.log(`🚫 Game ${gameId}: Clearing announcement interval`);
@@ -152,50 +152,30 @@ class GameEngine {
       console.log(`⚠️ Game ${gameId}: No active interval found`);
     }
 
-    console.log(`📥 Game ${gameId}: Fetching game from database to validate end conditions`);
+    console.log(`📥 Game ${gameId}: Fetching game from database to mark as COMPLETED`);
     const game = await LiveGame.findById(gameId);
-    if (!game) {
-      console.log(`❌ Game ${gameId}: Game not found in database`);
-      return;
-    }
-    
-    // ✅ CRITICAL FIX: Validate that game should actually end
-    const hasHousieWinner = !!(game.housieWinner?.userId && game.housieWinner?.cardNumber);
-    const allNumbersAnnounced = game.announcedNumbers.length >= 90 && game.currentIndex >= 90;
-    
-    console.log(`📊 Game ${gameId}: Final validation before ending:`);
-    console.log(`  - Announced: ${game.announcedNumbers.length}/90`);
-    console.log(`  - CurrentIndex: ${game.currentIndex}`);
-    console.log(`  - Housie Winner: ${hasHousieWinner}`);
-    console.log(`  - Housie Winner UserId: ${game.housieWinner?.userId}`);
-    console.log(`  - Housie Winner CardNumber: ${game.housieWinner?.cardNumber}`);
-    console.log(`  - All Numbers Announced: ${allNumbersAnnounced}`);
-    
-    if (!hasHousieWinner && !allNumbersAnnounced) {
-      console.log(`⚠️⚠️⚠️ Game ${gameId}: REFUSING TO END - No valid end condition met!`);
-      console.log(`⚠️ Only ${game.announcedNumbers.length}/90 numbers announced and no valid housie winner`);
-      console.log(`Game will NOT be marked as COMPLETED`);
-      return;
-    }
-    
-    console.log(`✅ Game ${gameId}: Valid end condition met, proceeding to complete`);
-    game.status = 'COMPLETED';
-    game.endTime = new Date();
-    await game.save();
-    console.log(`✅ Game ${gameId}: Marked as COMPLETED at ${game.endTime}`);
+    if (game) {
+      console.log(`📊 Game ${gameId}: Final stats - Announced: ${game.announcedNumbers.length}/90, CurrentIndex: ${game.currentIndex}`);
+      game.status = 'COMPLETED';
+      game.endTime = new Date();
+      await game.save();
+      console.log(`✅ Game ${gameId}: Marked as COMPLETED at ${game.endTime}`);
 
-    console.log(`📡 Game ${gameId}: Emitting game:ended event to clients`);
-    this.io.to(gameId).emit('game:ended', {
-      gameId,
-      winners: {
-        firstLine: game.firstLineWinner,
-        secondLine: game.secondLineWinner,
-        thirdLine: game.thirdLineWinner,
-        jaldi: game.jaldiWinner,
-        housie: game.housieWinner
-      }
-    });
-    console.log(`✅ Game ${gameId}: Game ended successfully`);
+      console.log(`📡 Game ${gameId}: Emitting game:ended event to clients`);
+      this.io.to(gameId).emit('game:ended', {
+        gameId,
+        winners: {
+          firstLine: game.firstLineWinner,
+          secondLine: game.secondLineWinner,
+          thirdLine: game.thirdLineWinner,
+          jaldi: game.jaldiWinner,
+          housie: game.housieWinner
+        }
+      });
+      console.log(`✅ Game ${gameId}: Game ended successfully`);
+    } else {
+      console.log(`❌ Game ${gameId}: Game not found in database`);
+    }
   }
 }
 

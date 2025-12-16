@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const config = require('../config/environment');
 const Account = require('../models/Account');
 const { sendOTP } = require('../utils/sms');
 const router = express.Router();
@@ -14,7 +15,7 @@ router.post('/register', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY));
+    const otpExpiry = new Date(Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300000));
 
     account = new Account({ username, phone, password, role, otp, otpExpiry });
     await account.save();
@@ -52,7 +53,7 @@ router.post('/verify-otp', async (req, res) => {
     account.lastLogin = new Date();
     await account.save();
 
-    const token = jwt.sign({ id: account._id, role: account.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: account._id, role: account.role }, config.JWT_SECRET, { expiresIn: '7d' });
     
     res.json({ 
       token, 
@@ -81,7 +82,7 @@ router.post('/login', async (req, res) => {
     account.lastLogin = new Date();
     await account.save();
 
-    const token = jwt.sign({ id: account._id, role: account.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: account._id, role: account.role }, config.JWT_SECRET, { expiresIn: '7d' });
     
     res.json({ 
       token, 
@@ -104,7 +105,7 @@ router.post('/resend-otp', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const otpExpiry = new Date(Date.now() + parseInt(process.env.OTP_EXPIRY));
+    const otpExpiry = new Date(Date.now() + (parseInt(process.env.OTP_EXPIRY) || 300000));
 
     account.otp = otp;
     account.otpExpiry = otpExpiry;
