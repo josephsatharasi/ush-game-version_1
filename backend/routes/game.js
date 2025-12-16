@@ -644,6 +644,7 @@ router.get('/my-coupons', auth, async (req, res) => {
             cardNumber: game[field].cardNumber,
             wonAt: game[field].wonAt,
             couponCode: game[field].couponCode,
+            couponValue: game[field].couponValue || 0,
             status: game[field].couponCode ? 'ASSIGNED' : 'PENDING'
           });
         }

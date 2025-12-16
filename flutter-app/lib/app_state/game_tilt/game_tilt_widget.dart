@@ -573,7 +573,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                         Flexible(
                           flex: 5,
                           child: Transform.translate(
-                            offset: const Offset(-10, 0),
+                            offset: const Offset(-30, 0),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -601,7 +601,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 4),
                                 // Numbers button
                                 Flexible(
                                   child: GestureDetector(
@@ -733,16 +733,15 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
               'assets/images/fam_coin.png',
               width: 250,
               height: 250,
-              fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   width: 250,
                   height: 250,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.amber,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.monetization_on, color: Colors.white, size: 150),
+                  child: const Icon(Icons.monetization_on, color: Colors.white, size: 150),
                 );
               },
             ),
@@ -756,7 +755,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                   Shadow(
                     color: Colors.black.withOpacity(0.5),
                     blurRadius: 8,
-                    offset: Offset(0, 2),
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),

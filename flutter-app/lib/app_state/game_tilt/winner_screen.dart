@@ -57,7 +57,7 @@ class _WinnerScreenState extends State<WinnerScreen> with SingleTickerProviderSt
       final housieWinner = response['housieWinner'];
       
       if (housieWinner != null && housieWinner['userId'] != null) {
-        final winnerUserId = housieWinner['userId'];
+        final winnerUserId = housieWinner['userId'].toString();
         final winnerName = housieWinner['username'] ?? 'Unknown';
         
         // Check if user won any partial prizes

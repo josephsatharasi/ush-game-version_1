@@ -85,20 +85,38 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
   Future<void> _fetchCouponData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final couponCode = prefs.getString('wonCouponCode');
-      final couponValue = prefs.getInt('wonCouponValue');
+      final token = prefs.getString('token');
+      final gameId = prefs.getString('gameId');
       
-      if (couponCode != null && couponValue != null) {
+      if (token == null || gameId == null) {
+        throw Exception('Missing credentials');
+      }
+      
+      // Fetch all coupons for this game
+      final response = await BackendApiConfig.getMyCoupons(token: token);
+      final List<dynamic> couponsJson = response['coupons'] ?? [];
+      
+      // Filter coupons for current game with ASSIGNED status
+      final gameCoupons = couponsJson.where((c) => 
+        c['gameId'] == gameId && c['status'] == 'ASSIGNED'
+      ).toList();
+      
+      if (gameCoupons.isNotEmpty) {
+        // Get the first assigned coupon
+        final coupon = gameCoupons.first;
+        final couponCode = coupon['couponCode'];
+        final couponValue = coupon['couponValue'] ?? 0;
+        
         if (mounted) {
           setState(() {
             _rewardAmount = '₹$couponValue';
-            _rewardCode = couponCode;
+            _rewardCode = couponCode ?? 'NO_CODE';
             _hasWon = true;
             _isLoading = false;
           });
         }
       } else {
-        // No coupon found
+        // No coupon assigned yet
         if (mounted) {
           setState(() {
             _rewardAmount = '₹0';
