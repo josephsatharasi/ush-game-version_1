@@ -5,10 +5,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Serve static files from the build directory
-app.use(express.static(path.join(__dirname, 'build')));
+app.use(express.static(path.join(__dirname, 'build'), {
+  index: 'index.html',
+  fallthrough: true
+}));
 
 // Handle React routing - return index.html for all routes
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
