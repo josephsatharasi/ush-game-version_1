@@ -84,28 +84,64 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
 
   Future<void> _fetchCouponData() async {
     try {
+      debugPrint('═══════════════════════════════════════════════════════');
+      debugPrint('🎁 SCRATCH SCREEN: Loading coupon data');
+      
       final prefs = await SharedPreferences.getInstance();
+      
+      // First try to get coupon from SharedPreferences (saved during claim-win)
+      final savedCouponCode = prefs.getString('wonCouponCode');
+      final savedCouponValue = prefs.getInt('wonCouponValue') ?? 0;
+      
+      debugPrint('🎁 SCRATCH SCREEN: Checking SharedPreferences');
+      debugPrint('🎁 SCRATCH SCREEN: Saved Coupon Code = $savedCouponCode');
+      debugPrint('🎁 SCRATCH SCREEN: Saved Coupon Value = ₹$savedCouponValue');
+      
+      if (savedCouponCode != null && savedCouponCode.isNotEmpty && savedCouponCode != 'NO_CODE') {
+        // Use saved coupon data
+        debugPrint('✅ SCRATCH SCREEN: Using coupon from SharedPreferences');
+        if (mounted) {
+          setState(() {
+            _rewardAmount = '₹$savedCouponValue';
+            _rewardCode = savedCouponCode;
+            _hasWon = true;
+            _isLoading = false;
+          });
+        }
+        debugPrint('✅ SCRATCH SCREEN: Coupon loaded successfully');
+        debugPrint('═══════════════════════════════════════════════════════');
+        return;
+      }
+      
+      // Fallback: Fetch from API if not in SharedPreferences
+      debugPrint('🔄 SCRATCH SCREEN: No saved coupon, fetching from API');
       final token = prefs.getString('token');
       final gameId = prefs.getString('gameId');
       
       if (token == null || gameId == null) {
+        debugPrint('❌ SCRATCH SCREEN: Missing credentials - token=$token, gameId=$gameId');
         throw Exception('Missing credentials');
       }
       
-      // Fetch all coupons for this game
+      debugPrint('📤 SCRATCH SCREEN: Calling getMyCoupons API');
       final response = await BackendApiConfig.getMyCoupons(token: token);
       final List<dynamic> couponsJson = response['coupons'] ?? [];
+      
+      debugPrint('📥 SCRATCH SCREEN: Received ${couponsJson.length} coupons');
       
       // Filter coupons for current game with ASSIGNED status
       final gameCoupons = couponsJson.where((c) => 
         c['gameId'] == gameId && c['status'] == 'ASSIGNED'
       ).toList();
       
+      debugPrint('🎯 SCRATCH SCREEN: Found ${gameCoupons.length} coupons for current game');
+      
       if (gameCoupons.isNotEmpty) {
-        // Get the first assigned coupon
         final coupon = gameCoupons.first;
         final couponCode = coupon['couponCode'];
         final couponValue = coupon['couponValue'] ?? 0;
+        
+        debugPrint('✅ SCRATCH SCREEN: Coupon found - Code=$couponCode, Value=₹$couponValue');
         
         if (mounted) {
           setState(() {
@@ -116,7 +152,7 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
           });
         }
       } else {
-        // No coupon assigned yet
+        debugPrint('⚠️ SCRATCH SCREEN: No coupon found for this game');
         if (mounted) {
           setState(() {
             _rewardAmount = '₹0';
@@ -126,8 +162,10 @@ class _ScratchRewardScreenState extends State<ScratchRewardScreen>
           });
         }
       }
+      debugPrint('═══════════════════════════════════════════════════════');
     } catch (e) {
-      debugPrint('❌ Failed to load coupon: $e');
+      debugPrint('❌❌❌ SCRATCH SCREEN ERROR: $e');
+      debugPrint('═══════════════════════════════════════════════════════');
       if (mounted) {
         setState(() {
           _rewardAmount = '₹0';

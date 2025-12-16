@@ -365,18 +365,22 @@ router.post('/:gameId/next-number', auth, async (req, res) => {
 router.get('/:gameId/announced-numbers', auth, async (req, res) => {
   try {
     const { gameId } = req.params;
+    console.log(`📢 GET ANNOUNCED NUMBERS: Game ${gameId}`);
 
     const game = await LiveGame.findById(gameId);
     if (!game) {
+      console.log(`❌ GET ANNOUNCED NUMBERS: Game not found`);
       return res.status(404).json({ message: 'Game not found' });
     }
 
+    console.log(`✅ GET ANNOUNCED NUMBERS: Current=${game.currentNumber}, Count=${game.announcedNumbers.length}, Remaining=${90 - game.announcedNumbers.length}`);
     res.json({
       announcedNumbers: game.announcedNumbers,
       currentNumber: game.currentNumber,
       remaining: 90 - game.announcedNumbers.length
     });
   } catch (error) {
+    console.log(`❌ GET ANNOUNCED NUMBERS ERROR: ${error.message}`);
     res.status(500).json({ message: error.message });
   }
 });
@@ -385,9 +389,11 @@ router.get('/:gameId/announced-numbers', auth, async (req, res) => {
 router.get('/:gameId/status', auth, async (req, res) => {
   try {
     const { gameId } = req.params;
+    console.log(`📊 GET GAME STATUS: Game ${gameId}`);
 
     const game = await LiveGame.findById(gameId);
     if (!game) {
+      console.log(`❌ GET GAME STATUS: Game not found`);
       return res.status(404).json({ message: 'Game not found' });
     }
 
@@ -400,6 +406,9 @@ router.get('/:gameId/status', auth, async (req, res) => {
     // ✅ DEFENSIVE CHECK: Validate game status before sending to client
     const hasHousieWinner = game.housieWinner?.userId && game.housieWinner?.cardNumber;
     const allNumbersAnnounced = game.currentIndex >= 90;
+    
+    console.log(`📊 GET GAME STATUS: Status=${game.status}, Current=${game.currentNumber}, Announced=${game.announcedNumbers.length}/90`);
+    console.log(`📊 GET GAME STATUS: Winners - 1st=${!!game.firstLineWinner}, 2nd=${!!game.secondLineWinner}, 3rd=${!!game.thirdLineWinner}, Jaldi=${!!game.jaldiWinner}, Housie=${!!game.housieWinner}`);
     
     // If backend incorrectly marked as COMPLETED but conditions not met, log warning
     if (game.status === 'COMPLETED' && !hasHousieWinner && !allNumbersAnnounced) {
@@ -418,6 +427,7 @@ router.get('/:gameId/status', auth, async (req, res) => {
       housieWinner: game.housieWinner
     });
   } catch (error) {
+    console.log(`❌ GET GAME STATUS ERROR: ${error.message}`);
     res.status(500).json({ message: error.message });
   }
 });
@@ -493,17 +503,37 @@ router.post('/:gameId/claim-win', auth, async (req, res) => {
     }
     await game.save();
     console.log(`✅ Game saved successfully. Status: ${game.status}`);
+    
+    // Verify coupon data exists
+    const savedCouponCode = game[winnerField]?.couponCode;
+    const savedCouponValue = game[winnerField]?.couponValue;
+    console.log(`🔍 Verifying saved data: couponCode=${savedCouponCode}, couponValue=${savedCouponValue}`);
+    
+    if (!savedCouponCode) {
+      console.log(`❌❌❌ ERROR: Coupon code not saved properly!`);
+      return res.status(500).json({ 
+        valid: false, 
+        message: 'Failed to generate coupon code' 
+      });
+    }
+    
     console.log(`🏁 END OF CLAIM-WIN PROCESSING\n`);
 
-    console.log(`📤 Sending success response to client\n`);
-    res.json({
+    const responseData = {
       valid: true,
       message: 'Congratulations! You won!',
-      couponCode: game[winnerField]?.couponCode,
-      couponValue: game[winnerField]?.couponValue
-    });
+      couponCode: savedCouponCode,
+      couponValue: savedCouponValue || 0
+    };
+    console.log(`📤 Sending success response to client:`, JSON.stringify(responseData));
+    res.json(responseData);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.log(`❌❌❌ CLAIM-WIN ERROR: ${error.message}`);
+    console.log(`❌ Stack trace:`, error.stack);
+    res.status(500).json({ 
+      valid: false,
+      message: error.message 
+    });
   }
 });
 
@@ -603,6 +633,7 @@ router.post('/:gameId/assign-coupon', auth, async (req, res) => {
 router.get('/my-coupons', auth, async (req, res) => {
   try {
     const userId = req.userId;
+    console.log(`🎟️ GET MY COUPONS: User ${userId}`);
 
     const games = await LiveGame.find({
       $or: [
@@ -613,6 +644,8 @@ router.get('/my-coupons', auth, async (req, res) => {
         { 'housieWinner.userId': userId }
       ]
     });
+
+    console.log(`🎟️ GET MY COUPONS: Found ${games.length} games with wins for user`);
 
     const coupons = [];
 
@@ -627,7 +660,7 @@ router.get('/my-coupons', auth, async (req, res) => {
 
       winTypes.forEach(({ type, field }) => {
         if (game[field] && game[field].userId.toString() === userId.toString()) {
-          coupons.push({
+          const coupon = {
             gameCode: game.gameCode,
             gameId: game._id,
             winType: type,
@@ -636,13 +669,17 @@ router.get('/my-coupons', auth, async (req, res) => {
             couponCode: game[field].couponCode,
             couponValue: game[field].couponValue || 0,
             status: game[field].couponCode ? 'ASSIGNED' : 'PENDING'
-          });
+          };
+          coupons.push(coupon);
+          console.log(`🎟️ GET MY COUPONS: Added ${type} coupon - Code: ${coupon.couponCode}, Value: ₹${coupon.couponValue}`);
         }
       });
     });
 
+    console.log(`✅ GET MY COUPONS: Returning ${coupons.length} coupons`);
     res.json({ coupons });
   } catch (error) {
+    console.log(`❌ GET MY COUPONS ERROR: ${error.message}`);
     res.status(500).json({ message: error.message });
   }
 });

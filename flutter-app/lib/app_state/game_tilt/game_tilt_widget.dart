@@ -343,8 +343,14 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           final announcedList = (statusResult['announcedNumbers'] as List?)?.cast<int>() ?? [];
           final remaining = 90 - announcedList.length;
           
-          debugPrint('🔄 BACKEND: Status: $gameStatus, Current: $newNumber, Count: ${announcedList.length}, Remaining: $remaining');
-          debugPrint('🔢 BACKEND: Numbers: $announcedList');
+          debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          debugPrint('🔄 POLLING CYCLE ${DateTime.now().toString().split('.')[0]}');
+          debugPrint('📊 GAME STATUS: $gameStatus');
+          debugPrint('🎯 CURRENT NUMBER: $newNumber (Previous: $_currentNumber)');
+          debugPrint('📈 ANNOUNCED COUNT: ${announcedList.length}/90');
+          debugPrint('⏳ REMAINING: $remaining');
+          debugPrint('🔢 ALL NUMBERS: $announcedList');
+          debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           
           // Update model with game status
           _model.updateFromGameStatus(statusResult);
@@ -355,25 +361,37 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
                                    statusResult['housieWinner']['userId'] != null &&
                                    statusResult['housieWinner']['userId'].toString().isNotEmpty;
             
+            debugPrint('🏁 GAME COMPLETION CHECK:');
+            debugPrint('   - Status: COMPLETED');
+            debugPrint('   - Numbers announced: ${announcedList.length}/90');
+            debugPrint('   - Has Housie Winner: $hasHousieWinner');
+            
             if (announcedList.length < 90 && !hasHousieWinner) {
-              debugPrint('⚠️ WARNING: Backend marked game COMPLETED but only ${announcedList.length} numbers announced and no housie winner!');
-              debugPrint('⚠️ Ignoring COMPLETED status and continuing game...');
-              // Don't stop polling, continue game
+              debugPrint('⚠️ ⚠️ ⚠️ INVALID COMPLETION DETECTED ⚠️ ⚠️ ⚠️');
+              debugPrint('⚠️ Backend marked COMPLETED but:');
+              debugPrint('⚠️   - Only ${announcedList.length}/90 numbers announced');
+              debugPrint('⚠️   - No housie winner declared');
+              debugPrint('⚠️ IGNORING completion status - continuing game');
+              debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
               return;
             }
             
-            debugPrint('✅ Game legitimately completed: ${announcedList.length} numbers or housie winner');
-            debugPrint('⏹️ POLLING: Stopping - game completed');
+            debugPrint('✅ ✅ ✅ VALID GAME COMPLETION ✅ ✅ ✅');
+            debugPrint('✅ Stopping all polling and navigating to winner screen');
+            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             _numberFetchTimer?.cancel();
             _numberFetchTimer = null;
-            _numberQueue.clear(); // Clear queue
+            _numberQueue.clear();
             _handleGameCompletion();
             return;
           }
           
           // Stop polling if game is not LIVE and not COMPLETED
           if (gameStatus != 'LIVE') {
-            debugPrint('⏹️ POLLING: Game status is $gameStatus - stopping announcements');
+            debugPrint('⏸️ GAME NOT LIVE:');
+            debugPrint('   - Current status: $gameStatus');
+            debugPrint('   - Stopping polling until game goes LIVE');
+            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             _numberFetchTimer?.cancel();
             _numberFetchTimer = null;
             return;
@@ -381,7 +399,10 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           
           // Check for new number announcement - announce immediately
           if (newNumber > 0 && newNumber != _currentNumber) {
-            debugPrint('🎆 NEW NUMBER: $newNumber (was $_currentNumber)');
+            debugPrint('🎆 🎆 🎆 NEW NUMBER DETECTED 🎆 🎆 🎆');
+            debugPrint('🎯 Number: $newNumber (Previous: $_currentNumber)');
+            debugPrint('🔊 Playing audio and TTS announcement');
+            debugPrint('🪙 Showing coin animation');
             
             setState(() {
               _currentNumber = newNumber;
@@ -394,23 +415,31 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             
             // Play audio and TTS
             _audioPlayer.play(AssetSource('audios/jar_shaking.mp3')).catchError((e) {
-              debugPrint('❌ AUDIO: Error - $e');
+              debugPrint('❌ AUDIO ERROR: $e');
             });
             
             _flutterTts.speak(newNumber.toString()).catchError((e) {
-              debugPrint('❌ TTS: Error - $e');
+              debugPrint('❌ TTS ERROR: $e');
             });
             
             // Show visual if on game screen
             if (mounted && !_isAppInBackground) {
               _processNumber(newNumber);
+              debugPrint('✅ Coin animation triggered');
+            } else {
+              debugPrint('⏭️ Skipping animation - mounted: $mounted, background: $_isAppInBackground');
             }
+            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           } else if (announcedList.length != _announcedNumbers.length) {
-            debugPrint('🔄 BACKEND: List updated: ${announcedList.length} numbers');
+            debugPrint('📝 LIST SYNC: Updated announced list (${_announcedNumbers.length} → ${announcedList.length})');
             setState(() {
               _announcedNumbers = announcedList;
             });
             GameNumberService().updateAnnouncedNumbers(announcedList);
+            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          } else {
+            debugPrint('⏸️ No changes detected - waiting for next poll');
+            debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
           }
         }
       } catch (e) {
@@ -880,11 +909,16 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
       final gameId = prefs.getString('gameId');
       final cardNumber = prefs.getString('cardNumber');
       
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('🏆 CLAIM WIN: Starting claim process');
+      debugPrint('🏆 CLAIM WIN: Win Type = $winType');
+      debugPrint('🏆 CLAIM WIN: Card Number = $cardNumber');
+      debugPrint('🏆 CLAIM WIN: Game ID = $gameId');
+      
       if (token == null || gameId == null || cardNumber == null) {
+        debugPrint('❌ CLAIM WIN: Missing credentials - token=$token, gameId=$gameId, cardNumber=$cardNumber');
         throw Exception('Missing credentials');
       }
-      
-      debugPrint('🏆 Claiming win for $winType with card $cardNumber');
       
       final winTypeMap = {
         'FIRST LINE': 'FIRST_LINE',
@@ -894,6 +928,7 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         'HOUSI': 'HOUSIE',
       };
       
+      debugPrint('📤 CLAIM WIN: Sending request to backend...');
       final response = await BackendApiConfig.claimWin(
         token: token,
         gameId: gameId,
@@ -901,11 +936,21 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         cardNumber: cardNumber,
       );
       
+      debugPrint('📥 CLAIM WIN: Response received: $response');
+      
       // Save coupon data from response
-      if (response['couponCode'] != null) {
-        await prefs.setString('wonCouponCode', response['couponCode']);
-        await prefs.setInt('wonCouponValue', response['couponValue'] ?? 0);
-        debugPrint('🎟️ Coupon saved: ${response['couponCode']} - ₹${response['couponValue']}');
+      final couponCode = response['couponCode'];
+      final couponValue = response['couponValue'] ?? 0;
+      
+      debugPrint('🎟️ CLAIM WIN: Coupon Code = $couponCode');
+      debugPrint('🎟️ CLAIM WIN: Coupon Value = ₹$couponValue');
+      
+      if (couponCode != null && couponCode.toString().isNotEmpty) {
+        await prefs.setString('wonCouponCode', couponCode.toString());
+        await prefs.setInt('wonCouponValue', couponValue);
+        debugPrint('✅ CLAIM WIN: Coupon saved to SharedPreferences');
+      } else {
+        debugPrint('❌ CLAIM WIN: No coupon code in response!');
       }
       
       if (mounted) {
@@ -914,22 +959,27 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
             case 'FIRST LINE':
               _model.firstLineCompleted = true;
               prefs.setBool('firstLineCompleted', true);
+              debugPrint('✅ CLAIM WIN: First line marked as completed');
               break;
             case 'SECOND LINE':
               _model.secondLineCompleted = true;
               prefs.setBool('secondLineCompleted', true);
+              debugPrint('✅ CLAIM WIN: Second line marked as completed');
               break;
             case 'THIRD LINE':
               _model.thirdLineCompleted = true;
               prefs.setBool('thirdLineCompleted', true);
+              debugPrint('✅ CLAIM WIN: Third line marked as completed');
               break;
             case 'JALDHI':
               _model.jaldhiCompleted = true;
               prefs.setBool('jaldhiCompleted', true);
+              debugPrint('✅ CLAIM WIN: Jaldhi marked as completed');
               break;
             case 'HOUSI':
               _model.housiCompleted = true;
               prefs.setBool('housiCompleted', true);
+              debugPrint('✅ CLAIM WIN: Housi marked as completed');
               break;
           }
         });
@@ -942,8 +992,12 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
           ),
         );
         
+        debugPrint('✅ CLAIM WIN: Success message shown');
+        debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
         // Navigate to winner screen for HOUSI
         if (winType == 'HOUSI') {
+          debugPrint('🏆 CLAIM WIN: HOUSI won - stopping game and navigating to winner screen');
           stopGameCompletely();
           Navigator.pushReplacement(
             context,
@@ -954,7 +1008,9 @@ class _GameTiltWidgetState extends State<GameTiltWidget>
         }
       }
     } catch (e) {
-      debugPrint('❌ Failed to claim win: $e');
+      debugPrint('❌❌❌ CLAIM WIN ERROR: $e');
+      debugPrint('❌ Stack trace: ${StackTrace.current}');
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

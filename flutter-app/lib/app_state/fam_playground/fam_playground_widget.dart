@@ -28,11 +28,16 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
   @override
   void initState() {
     super.initState();
+    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('📋 NUMBER BOARD: Initializing');
+    debugPrint('═══════════════════════════════════════════════════════');
     _checkAndClearOldGameData();
     _loadCompletionStatus();
     _loadTicketNumbers();
     _loadMarkedNumbers();
     _numberSubscription = GameNumberService().numberStream.listen((number) {
+      debugPrint('📡 NUMBER BOARD: Received number update: $number');
+      debugPrint('📊 NUMBER BOARD: Total announced: ${GameNumberService().announcedNumbers.length}');
       if (mounted) {
         setState(() {});
       }
@@ -54,6 +59,7 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
 
   Future<void> _loadTicketNumbers() async {
     try {
+      debugPrint('🎫 NUMBER BOARD: Loading ticket numbers...');
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       
@@ -71,6 +77,11 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
             final secondLine = (firstTicket['secondLine'] as List?)?.cast<int>() ?? [];
             final thirdLine = (firstTicket['thirdLine'] as List?)?.cast<int>() ?? [];
             
+            debugPrint('🎫 NUMBER BOARD: Ticket loaded');
+            debugPrint('   - 1st Line: $firstLine');
+            debugPrint('   - 2nd Line: $secondLine');
+            debugPrint('   - 3rd Line: $thirdLine');
+            
             if (mounted) {
               setState(() {
                 _model.selectedNumbers.clear();
@@ -78,12 +89,13 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
                 _model.selectedNumbers.addAll(secondLine);
                 _model.selectedNumbers.addAll(thirdLine);
               });
+              debugPrint('✅ NUMBER BOARD: ${_model.selectedNumbers.length} ticket numbers loaded');
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('Failed to load ticket numbers: $e');
+      debugPrint('❌ NUMBER BOARD: Failed to load ticket - $e');
     }
   }
   
@@ -119,9 +131,12 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
           _blockedNumbers.addAll(markedList.map((e) => int.parse(e)));
         });
       }
-      debugPrint('💾 Loaded ${_blockedNumbers.length} marked numbers from storage');
+      debugPrint('💾 NUMBER BOARD: Loaded ${_blockedNumbers.length} marked numbers');
+      if (_blockedNumbers.isNotEmpty) {
+        debugPrint('   - Marked: $_blockedNumbers');
+      }
     } catch (e) {
-      debugPrint('Failed to load marked numbers: $e');
+      debugPrint('❌ NUMBER BOARD: Failed to load marked numbers - $e');
     }
   }
   
@@ -129,9 +144,9 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('markedNumbers', _blockedNumbers.map((e) => e.toString()).toList());
-      debugPrint('💾 Saved ${_blockedNumbers.length} marked numbers to storage');
+      debugPrint('💾 NUMBER BOARD: Saved ${_blockedNumbers.length} marked numbers');
     } catch (e) {
-      debugPrint('Failed to save marked numbers: $e');
+      debugPrint('❌ NUMBER BOARD: Failed to save marked numbers - $e');
     }
   }
 
@@ -307,8 +322,10 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
       onTap: (isTicketNumber && isAnnounced) ? () {
         setState(() {
           if (_blockedNumbers.contains(number)) {
+            debugPrint('🔓 NUMBER BOARD: Unmarked $number');
             _blockedNumbers.remove(number);
           } else {
+            debugPrint('✅ NUMBER BOARD: Marked $number');
             _blockedNumbers.add(number);
           }
         });
@@ -611,6 +628,10 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
     };
     
     try {
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('🏆 NUMBER BOARD CLAIM: Starting claim for $lineType');
+      debugPrint('🏆 NUMBER BOARD CLAIM: Card = $cardNumber, Game = $gameId');
+      
       final response = await BackendApiConfig.claimWin(
         token: token,
         gameId: gameId,
@@ -618,12 +639,21 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
         cardNumber: cardNumber,
       );
       
-      // Save coupon data from response
+      debugPrint('📥 NUMBER BOARD CLAIM: Response = $response');
       
-      if (response['couponCode'] != null) {
-        await prefs.setString('wonCouponCode', response['couponCode']);
-        await prefs.setInt('wonCouponValue', response['couponValue'] ?? 0);
-        debugPrint('🎟️ Coupon saved: ${response['couponCode']} - ₹${response['couponValue']}');
+      // Save coupon data from response
+      final couponCode = response['couponCode'];
+      final couponValue = response['couponValue'] ?? 0;
+      
+      debugPrint('🎟️ NUMBER BOARD CLAIM: Coupon Code = $couponCode');
+      debugPrint('🎟️ NUMBER BOARD CLAIM: Coupon Value = ₹$couponValue');
+      
+      if (couponCode != null && couponCode.toString().isNotEmpty) {
+        await prefs.setString('wonCouponCode', couponCode.toString());
+        await prefs.setInt('wonCouponValue', couponValue);
+        debugPrint('✅ NUMBER BOARD CLAIM: Coupon saved to SharedPreferences');
+      } else {
+        debugPrint('❌ NUMBER BOARD CLAIM: No coupon code in response!');
       }
       
       if (mounted) {
@@ -632,32 +662,37 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
             case 'FIRST LINE':
               _firstLineCompleted = true;
               prefs.setBool('firstLineCompleted', true);
+              debugPrint('✅ NUMBER BOARD CLAIM: First line completed');
               break;
             case 'SECOND LINE':
               _secondLineCompleted = true;
               prefs.setBool('secondLineCompleted', true);
+              debugPrint('✅ NUMBER BOARD CLAIM: Second line completed');
               break;
             case 'THIRD LINE':
               _thirdLineCompleted = true;
               prefs.setBool('thirdLineCompleted', true);
+              debugPrint('✅ NUMBER BOARD CLAIM: Third line completed');
               break;
             case 'JALDHI':
               _jaldhiCompleted = true;
               prefs.setBool('jaldhiCompleted', true);
+              debugPrint('✅ NUMBER BOARD CLAIM: Jaldhi completed');
               break;
             case 'HOUSI':
               _housiCompleted = true;
               prefs.setBool('housiCompleted', true);
+              debugPrint('✅ NUMBER BOARD CLAIM: Housi completed');
               break;
           }
         });
         
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text(' $lineType'), backgroundColor: Colors.green, duration: Duration(seconds: 2)),
-        // );
+        debugPrint('✅ NUMBER BOARD CLAIM: Success!');
+        debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         
         // Navigate to winner screen after HOUSIE win
         if (lineType == 'HOUSI') {
+          debugPrint('🏆 NUMBER BOARD CLAIM: HOUSI won - navigating to winner screen');
           Future.delayed(Duration(seconds: 2), () {
             if (mounted) {
               Navigator.pushReplacementNamed(context, '/winner');
@@ -666,6 +701,8 @@ class _FamPlaygroundWidgetState extends State<FamPlaygroundWidget> {
         }
       }
     } catch (e) {
+      debugPrint('❌❌❌ NUMBER BOARD CLAIM ERROR: $e');
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
