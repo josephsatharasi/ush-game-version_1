@@ -34,10 +34,11 @@ scheduleCleanup();
 const app = express();
 
 // HTTPS ONLY - No HTTP support
+// Supports both api.vspaze.com and admin.vspaze.com
 const sslOptions = config.NODE_ENV === 'production' 
   ? {
-      key: fs.readFileSync('/etc/letsencrypt/live/api.vspaze.com/privkey.pem'),
-      cert: fs.readFileSync('/etc/letsencrypt/live/api.vspaze.com/fullchain.pem')
+      key: fs.readFileSync('C:\\ssl\\privkey.pem'),
+      cert: fs.readFileSync('C:\\ssl\\fullchain.pem')
     }
   : {
       key: fs.readFileSync(path.join(__dirname, 'ssl', 'localhost-key.pem')),
