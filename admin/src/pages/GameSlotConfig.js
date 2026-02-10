@@ -31,7 +31,7 @@ const GameSlotConfig = () => {
   const fetchGames = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/all`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/all`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -49,7 +49,7 @@ const GameSlotConfig = () => {
   const loadGameConfig = async (gameId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${gameId}/slot-config`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${gameId}/slot-config`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -96,7 +96,7 @@ const GameSlotConfig = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${selectedGame}/configure-slots`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${selectedGame}/configure-slots`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -32,7 +32,7 @@ const Games = () => {
   const fetchGames = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/admin-all`, {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/admin-all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setGames(res.data.games);
@@ -52,7 +52,7 @@ const Games = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.patch(
-        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${editModal._id}/update-slots`,
+        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${editModal._id}/update-slots`,
         { additionalSlots: parseInt(newSlots) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -67,7 +67,7 @@ const Games = () => {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(
-        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${game._id}/slot-config`,
+        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${game._id}/slot-config`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setTimeSlotModal({ game, config: res.data.config });
@@ -93,7 +93,7 @@ const Games = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${timeSlotModal.game._id}/add-time-slots`,
+        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${timeSlotModal.game._id}/add-time-slots`,
         { newTimeSlots },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -109,7 +109,7 @@ const Games = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
-        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${timeSlotModal.game._id}/time-slots/${encodeURIComponent(timeSlot)}`,
+        `${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${timeSlotModal.game._id}/time-slots/${encodeURIComponent(timeSlot)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       handleManageTimeSlots(timeSlotModal.game);

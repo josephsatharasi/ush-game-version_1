@@ -16,7 +16,7 @@ const GameControl = () => {
   const fetchGames = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/all`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/all`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -36,7 +36,7 @@ const GameControl = () => {
   const startGame = async (gameId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${gameId}/start`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${gameId}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -60,7 +60,7 @@ const GameControl = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${selectedGame}/announce`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${selectedGame}/announce`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -90,7 +90,7 @@ const GameControl = () => {
   const endGame = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/games/${selectedGame}/end`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/games/${selectedGame}/end`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

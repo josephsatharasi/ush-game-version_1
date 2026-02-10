@@ -67,7 +67,7 @@ const Register = ({ onSwitchToLogin }) => {
     
     setLoading(true);
     try {
-      const res = await axios.post(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/auth/register`, {
+      const res = await axios.post(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/auth/register`, {
         username: formData.username,
         phone: formData.phone,
         password: formData.password
@@ -108,7 +108,7 @@ const Register = ({ onSwitchToLogin }) => {
 
     setLoading(true);
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/auth/verify-otp`, {
+      await axios.post(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/auth/verify-otp`, {
         adminId,
         otp: otpString
       });
@@ -124,7 +124,7 @@ const Register = ({ onSwitchToLogin }) => {
     if (!canResend) return;
     setLoading(true);
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/api/admin/auth/resend-otp`, { adminId });
+      await axios.post(`${process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com'}/admin/auth/resend-otp`, { adminId });
       setTimer(60);
       setCanResend(false);
       setOtp(['', '', '', '']);

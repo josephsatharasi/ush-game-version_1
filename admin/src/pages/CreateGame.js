@@ -80,7 +80,7 @@ const CreateGame = () => {
       }
       
       // Create game first
-      const gameResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/games/create`, {
+      const gameResponse = await fetch(`${process.env.REACT_APP_API_URL}/admin/games/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -102,7 +102,7 @@ const CreateGame = () => {
       }
 
       // Configure slots
-      const configResponse = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/games/${gameData.game._id}/configure-slots`, {
+      const configResponse = await fetch(`${process.env.REACT_APP_API_URL}/admin/games/${gameData.game._id}/configure-slots`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

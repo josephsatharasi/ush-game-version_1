@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://ush-game-version-1.onrender.com';
 
 function Bookings() {
   const [bookings, setBookings] = useState([]);
